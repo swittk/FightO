@@ -3,6 +3,9 @@ const { Room, Server } = require('colyseus');
 const Matter = require('matter-js');
 
 
+//The client instance present in rooms and such are the same as the raw sockets from
+//the ws (WebSocket) package!
+
 /**
 Properties
 ==========
@@ -57,12 +60,80 @@ class FightOGame extends Room {
     //Colyseus's clock timer; use this instead of standard setTimeout and setInterval
     //this.clock
     
-    notsynched = 20;
+    this.loadMap(options.map);
+    
+    Engine.run(this.engine);
   }
+  
+  loadMap(map) {
+    //this.engine.world.add...
+  }
+  
+  loadEntities() {
+  }
+  
+  loadPlayers() {
+  }
+  
+  
   
   // Checks if a new client is allowed to join. (default: `return true`)
   requestJoin (options/**any*/, isNew/**boolean*/) {
     
+  }
+
+  // When client successfully join the room
+  onJoin (client/**Client*/) {
+    //TODO: ADD THIS
+    createPlayer(client);
+    
+    if(checkIfCompleteGame()) {
+      loadEntities();
+      loadPlayers();
+      startMatch();
+    }
+  }
+
+  // When a client leaves the room
+  onLeave (client/**Client*/) {
+  }
+  
+  // When a client sends a message
+  onMessage (client/**Client*/, data/**any*/) {
+    /**
+      Data might be..
+      1. Tilt / Acceleration
+      2. Use Item
+      */
+    
+    //TODO: ADD THIS
+    var pBody = getPlayerBodyFromClient(client);
+    
+    if(data.type == 'accel') {
+      Matter.Body.applyForce(
+        pBody, 
+        pBody.position, 
+        Matter.Vector.create(data.x * pBody.mass, data.y * pBody.mass)
+      );
+    }
+  }
+
+  // Cleanup callback, called after there are no more clients in the room. (see `autoDispose`)
+  onDispose () {
+    Matter.Engine.clear(this.engine)
+  }
+}
+
+
+class FightOLobby extends Room {
+  onInit (options) {
+    //Define non-enumerable property
+    Object.defineProperty(this, 'players', new Map());
+  }
+  
+  // Checks if a new client is allowed to join. (default: `return true`)
+  requestJoin (options/**any*/, isNew/**boolean*/) {
+    return true;
   }
 
   // When client successfully join the room
@@ -76,6 +147,9 @@ class FightOGame extends Room {
 
   // When a client sends a message
   onMessage (client/**Client*/, data/**any*/) {
+    if(data == 'join') {
+      
+    }
   }
 
   // Cleanup callback, called after there are no more clients in the room. (see `autoDispose`)
@@ -89,3 +163,8 @@ var Engine = Matter.Engine,
     Render = Matter.Render,
     World = Matter.World,
     Bodies = Matter.Bodies;
+
+
+var foserver = new Server();
+
+foserver.register("lobby", FightOLobby);
