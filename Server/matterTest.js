@@ -99,17 +99,28 @@ Matter.Render.run(render);
 
 var accelX = 0; var accelY = 0;
 
-function handleMotionEvent(event) {
-    accelX = event.accelerationIncludingGravity.x;
-    accelY = event.accelerationIncludingGravity.y;
-    //var z = event.accelerationIncludingGravity.z;
-    // Do something awesome.
-}
-
-Matter.Events.on(engine, "beforeUpdate", function() {
-  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.0001*accelX,-0.0001*accelY));
-  //console.log("x is "+accelX+", y is "+accelY);
-  console.log("called me")
+var gyroargs = {
+	frequency:50,					// ( How often the object sends the values - milliseconds )
+	gravityNormalized:false,			// ( If the gravity related values to be normalized )
+	orientationBase:GyroNorm.GAME,		// ( Can be GyroNorm.GAME or GyroNorm.WORLD. gn.GAME returns orientation values with respect to the head direction of the device. gn.WORLD returns the orientation values with respect to the actual north direction of the world. )
+	decimalCount:2,					// ( How many digits after the decimal point will there be in the return values )
+	logger:null,					// ( Function to be called to log messages from gyronorm.js )
+	screenAdjusted:false			// ( If set to true it will return screen adjusted values. )
+};
+var gn = new GyroNorm();
+gn.init().then(function(){
+  gn.start(function(data){
+   accelX = data.dm.gx		//( devicemotion event accelerationIncludingGravity x value )
+   accelY = data.dm.gy		//( devicemotion event accelerationIncludingGravity y value )
+   //data.dm.gz		( devicemotion event accelerationIncludingGravity z value )
+  });
+}).catch(function(e){
+  // Catch if the DeviceOrientation or DeviceMotion is not supported by the browser or device
 });
 
-window.addEventListener("devicemotion", handleMotionEvent, true)
+
+Matter.Events.on(engine, "beforeUpdate", function() {
+  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.0001*accelX,0.0001*accelY));
+  //console.log("x is "+accelX+", y is "+accelY);
+  console.log("called me");
+});
