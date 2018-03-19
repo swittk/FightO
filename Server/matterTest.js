@@ -7,7 +7,7 @@ const mapUnitSize = 15;
 
 
 function newPlayer(x, y) {
-  var player = Matter.Bodies.circle(x, y, playerDiameter/2.0, {frictionAir : 200});
+  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir : 1, isStatic: false});
   return player;
 }
 
@@ -90,8 +90,21 @@ var render = Matter.Render.create({
 
 
 loadLevel(sampleLevel);
-newPlayer(50,50);
-
+var player = newPlayer(10,10);
+Matter.World.add(engine.world, player);
 
 Matter.Engine.run(engine);
 Matter.Render.run(render);
+
+
+
+function handleMotionEvent(event) {
+    var x = event.accelerationIncludingGravity.x;
+    var y = event.accelerationIncludingGravity.y;
+    var z = event.accelerationIncludingGravity.z;
+    // Do something awesome.
+    
+    Matter.Body.applyForce(player, x, y);
+}
+
+window.addEventListener("devicemotion", handleMotionEvent, true)
