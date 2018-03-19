@@ -2,6 +2,33 @@ const { Room, Server } = require('colyseus');
 
 const Matter = require('matter-js');
 
+var sampleLevel = {
+  "size" : {w:100,h:100},
+  "floor" : [
+    {x:0,y:0,w:100,h:100,surf:"grass"}
+  ],
+  "walls" : [
+    {x:1,y:1,w:1,h:1,surf:"grass"},
+    {x:1,y:2,w:1,h:2,surf:"stone"},
+    {x:5,y:5,w:2,h:1,surf:"stone.break",breakable:true,breakvelocity:10}
+  ],
+  "entities" : [
+    {
+      type : "pickup.boost", //Specifies most information to be loaded
+      x: 50,
+      y: 50,
+      properties : {
+        //properties that we want to override/add
+      }
+    }
+  ],
+  "spawnpoints" : [
+    {x:10, y:10},
+    {x:90, y:90},
+    {x:90, y:10},
+    {x:10, y:90}
+  ]
+}
 
 //The client instance present in rooms and such are the same as the raw sockets from
 //the ws (WebSocket) package!
@@ -67,6 +94,7 @@ class FightOGame extends Room {
   
   loadMap(map) {
     //this.engine.world.add...
+    map.
   }
   
   loadEntities() {
