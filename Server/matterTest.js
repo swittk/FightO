@@ -151,15 +151,15 @@ gn.init(gyroargs).then(function(){
 Matter.Events.on(engine, "beforeUpdate", function() {
   if(keyboardInput) {
     var ay = 0; var ax = 0;
-    if(keys["ArrowDown"]) {ay += 3;}
-    if(keys["ArrowUp"]) {ay -= 3;}
+    if(keys["ArrowDown"]) {ay -= 3;}
+    if(keys["ArrowUp"]) {ay += 3;}
     if(keys["ArrowLeft"]) {ax -= 3;}
     if(keys["ArrowRight"]) {ax += 3;}
     accelX = ax;
     accelY = ay;
     //console.log("ax and ay are "+ax+","+ay);
   }
-  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001*player.mass*accelX,0.001*player.mass*accelY));
+  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001*player.mass*accelX,-0.001*player.mass*accelY));
   //console.log("x is "+accelX+", y is "+accelY);
 });
 
