@@ -104,7 +104,7 @@ function handleMotionEvent(event) {
     var z = event.accelerationIncludingGravity.z;
     // Do something awesome.
     
-    Matter.Body.applyForce(player, x, y);
+    Matter.Body.applyForce(player, x/100.0, y/100.0);
 }
 
 window.addEventListener("devicemotion", handleMotionEvent, true)
