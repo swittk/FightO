@@ -107,7 +107,7 @@ function handleMotionEvent(event) {
 }
 
 Matter.Events.on(engine, "beforeUpdate", function() {
-  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001,0.001));
+  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.0001,0.0001));
   //console.log("x is "+accelX+", y is "+accelY);
   console.log("called me")
 });
