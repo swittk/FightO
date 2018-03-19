@@ -97,14 +97,19 @@ Matter.Engine.run(engine);
 Matter.Render.run(render);
 
 
+var accelX = 0; var accelY = 0;
 
 function handleMotionEvent(event) {
-    var x = event.accelerationIncludingGravity.x;
-    var y = event.accelerationIncludingGravity.y;
-    var z = event.accelerationIncludingGravity.z;
+    accelX = event.accelerationIncludingGravity.x;
+    accelY = event.accelerationIncludingGravity.y;
+    //var z = event.accelerationIncludingGravity.z;
     // Do something awesome.
-    
-    Matter.Body.applyForce(player, x/100.0, y/100.0);
 }
+
+Matter.Events.on(engine, "beforeUpdate", function() {
+  Matter.Body.applyForce(player, player.position, Matter.Vector.create(accelX/200.0, accelY/200.0));
+  //console.log("x is "+accelX+", y is "+accelY);
+  //console.log("called me")
+});
 
 window.addEventListener("devicemotion", handleMotionEvent, true)
