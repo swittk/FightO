@@ -7,7 +7,7 @@ const mapUnitSize = 15;
 
 
 function newPlayer(x, y) {
-  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir : 1, isStatic: false});
+  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir : 0.7, isStatic: false});
   return player;
 }
 
@@ -107,9 +107,9 @@ function handleMotionEvent(event) {
 }
 
 Matter.Events.on(engine, "beforeUpdate", function() {
-  Matter.Body.applyForce(player, player.position, Matter.Vector.create(accelX/200.0, accelY/200.0));
+  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001,0.001));
   //console.log("x is "+accelX+", y is "+accelY);
-  //console.log("called me")
+  console.log("called me")
 });
 
 window.addEventListener("devicemotion", handleMotionEvent, true)
