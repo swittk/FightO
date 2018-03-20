@@ -68,7 +68,7 @@ function newPlayer(pname) {
   varPlayer.spawnX = sampleLevel.spawnpoints[pname].x; // location from sample level spawnpoints array
   varPlayer.spawnY = sampleLevel.spawnpoints[pname].y;
   var temp_keyLegend = [];
-  for (var i = 0; i < 4; i++){
+  for (var i = 0; i < N_Player; i++){
     var temp_keyType = {};                       // Set direction {  0,   1,   2,   3   } as
     temp_keyType.key = keyLegendGlobal[pname][i];           // Key:  Up  Down Left Right
     temp_keyType.moveX = directionLegend[i].x;            // moveX:  0    0   -1    1
@@ -173,7 +173,7 @@ var render = Matter.Render.create({
 });
 
 loadLevel(sampleLevel);
-for (var i = 1; i <= 4; i++) {
+for (var i = 1; i <= N_Player; i++) {
   player[i] = newPlayer(i);
   spawnPlayer(i);
 }
@@ -223,7 +223,7 @@ gn.init(gyroargs).then(function(){
 
 Matter.Events.on(engine, "afterUpdate", function(event) {
   //console.log('Total floorcount : '+player.floorCount);
-  for (var i = 1; i <= 4; i++) {
+  for (var i = 1; i <= N_Player; i++) {
     if(player[i].spawnComplete == false) {
       console.log('position at '+player[i].position.x +','+player[i].position.y);
       //console.log('now stamp '+event.timestamp);
@@ -243,7 +243,7 @@ Matter.Events.on(engine, "afterUpdate", function(event) {
 Matter.Events.on(engine, "beforeUpdate", function(event) {
   var accelX, accelY;
   if(keyboardInput) {
-    for (var i = 1; i <= 4; i++) { // loop player 1 to 4
+    for (var i = 1; i <= N_Player; i++) { // loop player 1 to 4
       accelX = 0;
       accelY = 0;
       for (var j = 0; j < 4; j++) { // loop key legend "up" "down" "left" "right"
