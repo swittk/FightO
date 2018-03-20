@@ -1,10 +1,51 @@
 const { Room, Server } = require('colyseus');
-
-const Matter = require('matter-js');
+var window = {};
 const http = require('http');
 
 const playerDiameter = 10;
 const mapUnitSize = 15;
+
+
+/**
+  * Ugly patch to get Matter.js running on server
+  */
+  
+global.document = {
+  createElement: function(){
+    // Canvas
+    return {
+      getContext: function() {
+        return {};
+      }
+    };
+  }
+};
+global.window = {};
+var Matter = require('matter-js/build/matter.js');
+var World = Matter.World;
+var Body = Matter.Body;
+var Bodies = Matter.Bodies;
+var Engine = Matter.Engine;
+
+var options = {
+  render: {
+    element: null,
+    controller: {
+      create: function() {},
+      clear: function() {},
+      world: function() {}
+    }
+  },
+  input: {
+    mouse: {}
+  }
+};
+
+
+/** 
+  End of ugly patch
+*/
+  
 
 
 function newPlayer(x, y) {
@@ -30,19 +71,33 @@ function newWallPiece(x,y,w,h) {
   return wall;
 }
 
+
+class GameState {
+  constructor(map) {
+    this.clients = [];
+    this.playerBodies = [];
+    
+    this.map = map;
+  }
+}
+
+
+
 class FightOGame extends Room {
   // When room is initialized
-  onInit (options) {    
+  onInit (options) {
+    console.log("map is "+JSON.stringify(options.map)); 
     this.engine = Matter.Engine.create();
     this.engine.world.gravity = Matter.Vector.create(0,0);
     
     this.player = newPlayer(10,10);
-    this.spawnPlayer(player);
+    this.spawnPlayer(this.player);
     
     this.aX = 0; this.aY = 0;
     
-    this.registerEnginePlayerLoop();
-    registerEngineFloorCollision(this.engine, this.player);
+    var player = this.player;
+    this.registerEnginePlayerLoop(player);
+    this.registerFloorCollision(player);
     
     //Set patch rate in milliseconds, default is 50
     //this.setPatchRate(50);
@@ -54,29 +109,27 @@ class FightOGame extends Room {
     //this.clock
     
     this.loadMap(options.map);
-    
-    Engine.run(this.engine);
+    Matter.Engine.run(this.engine, options);
+    this.setState(new GameState());
   }
   
   loadMap(map) {
-    for(mapDesc of level.floor) {
+    for(var mapDesc of map.floor) {
       var floor = newFloorPiece(mapDesc.x, mapDesc.y, mapDesc.w, mapDesc.h);
       Matter.World.add(this.engine.world, floor);
     }
-    for(mapDesc of level.walls) {
+    for(var mapDesc of map.walls) {
       var wall = newWallPiece(mapDesc.x, mapDesc.y, mapDesc.w, mapDesc.h);
       if(mapDesc.breakable) {
         wall.label = "breakblock";
-        wall.render.fillStyle = '#C7F464';
         wall.breakenergy = mapDesc.breakenergy;
       }
       Matter.World.add(this.engine.world, wall);
     }
   }
   
-  registerEnginePlayerLoop() {
-    var player = this.player;
-    
+  registerEnginePlayerLoop(player) {    
+    var self = this;
     Matter.Events.on(this.engine, "afterUpdate", function(event) {
       //console.log('Total floorcount : '+player.floorCount);
       if(player.spawnComplete == false) {
@@ -88,22 +141,87 @@ class FightOGame extends Room {
         }
       }
       else if(player.floorCount < 1) {
-        killPlayer(player);
-        spawnPlayer(player, 10, 10);
+        self.killPlayer(player);
+        self.spawnPlayer(player, 10, 10);
       }
+      
+      self.state.position = player.position;
     });
     Matter.Events.on(this.engine, "beforeUpdate", function(event) {
-      Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001*player.mass*this.aX,-0.001*player.mass*this.aY));
+      Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001*player.mass*self.aX,-0.001*player.mass*self.aY));
     });
   }
+  
+  registerFloorCollision(player) {
+    var engine = this.engine;
+    Matter.Events.on(this.engine, "collisionStart", function(event) {
+    //   pairs : List of affected pairs
+    //   timestamp Number : The engine.timing.timestamp of the event
+    //   source : The source object of the event
+    //   name : The name of the event
+      var pairs = event.pairs;
+
+      // change object colours to show those ending a collision
+      for (var i = 0; i < pairs.length; i++) {
+        var pair = pairs[i];
+        console.log("collision between "+pair.bodyA.label+" and "+pair.bodyB.label);
+        if(pair.bodyA.label == "player") {
+          if(pair.bodyB.label == "breakblock") {
+            logPlayerCollision(pair.bodyA);
+            if(bodyEnergy(pair.bodyA) > pair.bodyB.breakenergy) {
+              Matter.World.remove(engine.world, pair.bodyB);
+            }
+          }
+          else if(pair.bodyB.isFloor) {
+            player.floorCount = player.floorCount+1;
+            console.log('added floor');
+          }
+        }
+        else if(pair.bodyB.label == "player") {
+          if(pair.bodyA.label == "breakblock") {
+            logPlayerCollision(pair.bodyB);
+            if(bodyEnergy(pair.bodyB) > pair.bodyA.breakenergy) {
+              Matter.World.remove(engine.world, pair.bodyA);
+            }
+          }
+          else if(pair.bodyA.isFloor) {
+              player.floorCount = player.floorCount+1;
+            console.log('added floor');
+          }
+        }
+      }
+    });
+
+    Matter.Events.on(engine, "collisionEnd", function(event) {
+      var pairs = event.pairs;
+      // change object colours to show those ending a collision
+      for (var i = 0; i < pairs.length; i++) {
+        var pair = pairs[i];
+        console.log("collision end between "+pair.bodyA.label+" and "+pair.bodyB.label);
+        if(pair.bodyA.label == "player") {
+          if(pair.bodyB.isFloor) {
+              player.floorCount = player.floorCount-1;
+            console.log('removed floor');
+          }
+        }
+        else if(pair.bodyB.label == "player") {
+          if(pair.bodyA.isFloor) {
+              player.floorCount = player.floorCount-1;
+            console.log('removed floor');
+          }
+        }
+      }
+    });
+  }
+  
   spawnPlayer(p, x, y) {
     if(x !== undefined && y !== undefined) {
       Matter.Body.setPosition(p, Matter.Vector.create(x*mapUnitSize,y*mapUnitSize));
     }
     p.floorCount = 0;
-    p.spawnTimer = 0;
+    p.spawnTimer = 100;
     p.spawnComplete = false;
-    p.startSpawnStamp = engine.timing.timestamp;
+    p.startSpawnStamp = this.engine.timing.timestamp;
     console.log('start stamp of '+p.startSpawnStamp);
     console.log('Start position at '+p.position.x +','+p.position.y);
     Matter.World.add(this.engine.world, p);
@@ -230,7 +348,7 @@ const httpServer = http.createServer();
 var foserver = new Server();
 
 
-foserver.register("sample", TestRoom, {map:sampleLevel});
+foserver.register("sample", FightOGame, {map:sampleLevel});
 
 foserver.attach({ server: httpServer });
 foserver.listen(4000)
