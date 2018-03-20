@@ -6,6 +6,7 @@ engine.world.gravity = Matter.Vector.create(0,0);
 const playerDiameter = 10;
 const mapUnitSize = 15;
 const N_Player = 4; // number of players
+var player = [];
 
 var sampleLevel = {
   "size" : {w:100,h:100},
@@ -42,23 +43,41 @@ var sampleLevel = {
 }
 
 var keyLegendGlobal = [];
-keyLegendGlobal[1] = ["w","s","a","d"];
-keyLegendGlobal[2] = ["Uparrow","s","a","d"];
+keyLegendGlobal[1] = ["KeyW","KeyS","KeyA","KeyD"];
+keyLegendGlobal[2] = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
+keyLegendGlobal[3] = ["KeyI","KeyK","KeyJ","KeyL"];
+keyLegendGlobal[4] = ["Numpad5","Numpad2","Numpad1","Numpad3"];
 
-
+var directionLegend = [];
+directionLegend[0] = {x:0, y:1};  //Up
+directionLegend[1] = {x:0, y:-1}; //Down
+directionLegend[2] = {x:-1, y:0}; //Left
+directionLegend[3] = {x:1, y:0};  //Right
 
 function newPlayer(pname) {
-  var varPlayer = Matter.Bodies.circle(sampleLevel.spawnpoints[pname].x*mapUnitSize, sampleLevel.spawnpoints[pname].y*mapUnitSize, playerDiameter/2.0, {frictionAir: 0.005, isStatic: false});
-  varPlayer.label = "player"; // label = type of body
+  var varPlayer = Matter.Bodies.circle(sampleLevel.spawnpoints[pname].x*mapUnitSize, sampleLevel.spawnpoints[pname].y*mapUnitSize, playerDiameter/2.0, {
+    frictionStatic: 0,
+    friction: 0,
+    frictionAir: 0.005,
+    restitution: 1,
+    label: "player", // label = type of body
+    floorCount: 0,
+    isStatic: false
+  });
   varPlayer.labelname = pname; // pname = {1,2,3,4}
-  varPlayer.floorCount = 0;
-  varPlayer.spawnX = sampleLevel.spawnpoints[pname].x; // from sample level spawnpoints array
+  varPlayer.spawnX = sampleLevel.spawnpoints[pname].x; // location from sample level spawnpoints array
   varPlayer.spawnY = sampleLevel.spawnpoints[pname].y;
+  var temp_keyLegend = [];
   for (var i = 0; i < 4; i++){
-
-
+    var temp_keyType = {};                       // Set direction {  0,   1,   2,   3   } as
+    temp_keyType.key = keyLegendGlobal[pname][i];           // Key:  Up  Down Left Right
+    temp_keyType.moveX = directionLegend[i].x;            // moveX:  0    0   -1    1
+    temp_keyType.moveY = directionLegend[i].y;            // moveY:  1   -1    0    0
+    temp_keyLegend[i] = temp_keyType;
   }
-  Matter.Body.setMass(varPlayer,2000); // Set mass
+  varPlayer.keyLegend = temp_keyLegend;
+  Matter.Body.setMass(varPlayer,2000); // Set mass to 2000
+  console.log(varPlayer);
   return varPlayer;
 }
 
@@ -106,8 +125,8 @@ function spawnPlayer(pName, x, y) {
     setSpawnY = y*mapUnitSize;
   }
   else {
-    setSpawnX = sampleLevel.spawnpoints[pName].x;
-    setSpawnY = sampleLevel.spawnpoints[pName].y;    
+    setSpawnX = sampleLevel.spawnpoints[pName].x*mapUnitSize;
+    setSpawnY = sampleLevel.spawnpoints[pName].y*mapUnitSize;    
   }
   player[pName].floorCount = 0;
   player[pName].spawnTimer = 0;
@@ -153,10 +172,9 @@ var render = Matter.Render.create({
     options: renderOpts
 });
 
-var player = [];
 loadLevel(sampleLevel);
 for (var i = 1; i <= 4; i++) {
-  player.push(newPlayer(i));
+  player[i] = newPlayer(i);
   spawnPlayer(i);
 }
 Matter.Engine.run(engine);
@@ -193,11 +211,11 @@ gn.init(gyroargs).then(function(){
   keyboardInput = true;
   window.addEventListener("keydown",
     function(e){
-      keys[e.key] = true;
+      keys[e.code] = true;
     }, false);
   window.addEventListener('keyup',
     function(e){
-      keys[e.key] = false;
+      keys[e.code] = false;
     }, false);/*
 });*/
 
@@ -205,29 +223,20 @@ gn.init(gyroargs).then(function(){
 
 Matter.Events.on(engine, "afterUpdate", function(event) {
   //console.log('Total floorcount : '+player.floorCount);
-  if(player.spawnComplete == false) {
-    console.log('position at '+player.position.x +','+player.position.y);
-    //console.log('now stamp '+event.timestamp);
-    if(event.timestamp - player.startSpawnStamp > player.spawnTimer) {
-      player.spawnComplete = true;
-      console.log('completed spawn');
+  for (var i = 1; i <= 4; i++) {
+    if(player[i].spawnComplete == false) {
+      console.log('position at '+player[i].position.x +','+player[i].position.y);
+      //console.log('now stamp '+event.timestamp);
+      if(event.timestamp - player[i].startSpawnStamp > player[i].spawnTimer) {
+        player[i].spawnComplete = true;
+        console.log('completed spawn');
+      }
     }
-  }
-  else if(player.floorCount < 1) {
-    killPlayer(player);
-    spawnPlayer(player, 10, 10);
-  }
-  if(player2.spawnComplete == false) {
-    console.log('position at '+player2.position.x +','+player2.position.y);
-    //console.log('now stamp '+event.timestamp);
-    if(event.timestamp - player2.startSpawnStamp > player2.spawnTimer) {
-      player2.spawnComplete = true;
-      console.log('completed spawn');
+    else if(player[i].floorCount < 1) {
+      console.log("Player " + i + " : killed");
+      killPlayer(i);
+      spawnPlayer(i);
     }
-  }
-  else if(player2.floorCount < 1) {
-    killPlayer(player2);
-    spawnPlayer(player2, 35, 10);
   }
 });
 
@@ -244,7 +253,7 @@ Matter.Events.on(engine, "beforeUpdate", function(event) {
         }
       }
       //console.log("ax and ay are "+accelX+","+accelY);
-      Matter.Body.applyForce(player[i], player[i].position, Matter.Vector.create(aX,-aY));
+      Matter.Body.applyForce(player[i], player[i].position, Matter.Vector.create(accelX,-accelY));
     }
   }
 });
@@ -268,6 +277,7 @@ Matter.Events.on(engine, "collisionStart", function(event) {
   for (var i = 0; i < pairs.length; i++) {
     var pair = pairs[i];
     console.log("collision between "+pair.bodyA.label+" and "+pair.bodyB.label);
+    
     if(pair.bodyA.label == "player") {
       if(pair.bodyB.label == "breakblock") {
         logPlayerCollision(pair.bodyA);
@@ -276,10 +286,7 @@ Matter.Events.on(engine, "collisionStart", function(event) {
         }
       }
       else if(pair.bodyB.isFloor) {
-        if (pair.bodyA.labelname==1)
-          player.floorCount = player.floorCount+1;
-        else if (pair.bodyA.labelname==2)
-          player2.floorCount = player2.floorCount+1;
+        player[pair.bodyA.labelname].floorCount++;
         console.log('added floor');
       }
     }
@@ -287,14 +294,11 @@ Matter.Events.on(engine, "collisionStart", function(event) {
       if(pair.bodyA.label == "breakblock") {
         logPlayerCollision(pair.bodyB);
         if(bodyEnergy(pair.bodyB) > pair.bodyA.breakenergy) {
-          Matter.World.remove(engine.world, pair.bodyA);
+          Matter.World.remove(engine.world, pair.bodyA); 
         }
       }
       else if(pair.bodyA.isFloor) {
-        if (pair.bodyB.labelname==1)
-          player.floorCount = player.floorCount+1;
-        else if (pair.bodyB.labelname==2)
-          player2.floorCount = player2.floorCount+1;
+        player[pair.bodyB.labelname].floorCount++;
         console.log('added floor');
       }
     }
@@ -309,19 +313,13 @@ Matter.Events.on(engine, "collisionEnd", function(event) {
     console.log("collision end between "+pair.bodyA.label+" and "+pair.bodyB.label);
     if(pair.bodyA.label == "player") {
       if(pair.bodyB.isFloor) {
-        if (pair.bodyA.labelname==1)
-          player.floorCount = player.floorCount-1;
-        else if (pair.bodyA.labelname==2)
-          player2.floorCount = player2.floorCount-1;
+        player[pair.bodyA.labelname].floorCount--;
         console.log('removed floor');
       }
     }
     else if(pair.bodyB.label == "player") {
       if(pair.bodyA.isFloor) {
-        if (pair.bodyB.labelname==1)
-          player.floorCount = player.floorCount-1;
-        else if (pair.bodyB.labelname==2)
-          player2.floorCount = player2.floorCount-1;
+        player[pair.bodyB.labelname].floorCount--;
         console.log('removed floor');
       }
     }
