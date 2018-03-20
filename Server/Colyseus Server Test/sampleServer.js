@@ -192,7 +192,7 @@ class TestRoom extends Room {
     this.setState({
       array:[],
       dummy:"hello",
-      map:sampleLevel
+      map:options.map
     });
   }
   
@@ -230,7 +230,7 @@ const httpServer = http.createServer();
 var foserver = new Server();
 
 
-foserver.register("sample", TestRoom);
+foserver.register("sample", TestRoom, {map:sampleLevel});
 
 foserver.attach({ server: httpServer });
 foserver.listen(4000)
