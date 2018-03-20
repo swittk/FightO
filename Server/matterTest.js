@@ -3,7 +3,7 @@
 var engine = Matter.Engine.create();
 engine.world.gravity = Matter.Vector.create(0,0);
 
-const playerDiameter = 10;
+const playerDiameter = 30;
 const mapUnitSize = 15;
 const N_Player = 4; // number of players
 var player = [];
