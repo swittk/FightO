@@ -5,32 +5,7 @@ engine.world.gravity = Matter.Vector.create(0,0);
 
 const playerDiameter = 10;
 const mapUnitSize = 15;
-
-
-function newPlayer(x, y, pname) {
-  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir: 0.005, isStatic: false});
-  player.label = "player";
-  Matter.Body.setMass(player,2000);
-  player.labelname = pname;
-  player.floorCount = 0;
-  return player;
-}
-
-function newFloorPiece(x,y,w,h) {
-  var ox = x + w/2;
-  var oy = y + h/2;
-  var floor = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true, isSensor : true});
-  floor.isFloor = true;
-  return floor;
-}
-
-function newWallPiece(x,y,w,h) {
-  var ox = x + w/2;
-  var oy = y + h/2;
-  var wall = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true});
-  console.log("added wall "+wall);
-  return wall;
-}
+const N_Player = 4; // number of players
 
 var sampleLevel = {
   "size" : {w:100,h:100},
@@ -58,14 +33,50 @@ var sampleLevel = {
     }
   ],
   "spawnpoints" : [
-    {x:10, y:10},
-    {x:90, y:90},
-    {x:90, y:10},
-    {x:10, y:90}
-  ]
+    {x:0, y:0},  // Player 0 spawnpoints
+    {x:10, y:10}, // Player 1 spawnpoints
+    {x:35, y:10},
+    {x:10, y:30},
+    {x:35, y:30}
+  ] // corrected by champ according to new map
 }
 
+var keyLegendGlobal = [];
+keyLegendGlobal[1] = ["w","s","a","d"];
+keyLegendGlobal[2] = ["Uparrow","s","a","d"];
 
+
+
+function newPlayer(pname) {
+  var varPlayer = Matter.Bodies.circle(sampleLevel.spawnpoints[pname].x*mapUnitSize, sampleLevel.spawnpoints[pname].y*mapUnitSize, playerDiameter/2.0, {frictionAir: 0.005, isStatic: false});
+  varPlayer.label = "player"; // label = type of body
+  varPlayer.labelname = pname; // pname = {1,2,3,4}
+  varPlayer.floorCount = 0;
+  varPlayer.spawnX = sampleLevel.spawnpoints[pname].x; // from sample level spawnpoints array
+  varPlayer.spawnY = sampleLevel.spawnpoints[pname].y;
+  for (var i = 0; i < 4; i++){
+
+
+  }
+  Matter.Body.setMass(varPlayer,2000); // Set mass
+  return varPlayer;
+}
+
+function newFloorPiece(x,y,w,h) {
+  var ox = x + w/2;
+  var oy = y + h/2;
+  var floor = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true, isSensor : true});
+  floor.isFloor = true;
+  return floor;
+}
+
+function newWallPiece(x,y,w,h) {
+  var ox = x + w/2;
+  var oy = y + h/2;
+  var wall = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true});
+  console.log("added wall "+wall);
+  return wall;
+}
 
 function loadLevel(level) {
   for(mapDesc of level.floor) {
@@ -83,22 +94,30 @@ function loadLevel(level) {
   }
 }
 
-function killPlayer(p) {
-  Matter.World.remove(engine.world, p);
+function killPlayer(pName) {
+  Matter.World.remove(engine.world, player[pName]);
   console.log("You died");
 }
-function spawnPlayer(p, x, y) {
+
+function spawnPlayer(pName, x, y) {
+  var setSpawnX, setSpawnY;
   if(x !== undefined && y !== undefined) {
-    Matter.Body.setPosition(p, Matter.Vector.create(x*mapUnitSize,y*mapUnitSize));
-    Matter.Body.setVelocity(p,Matter.Vector.create(0,0));
+    setSpawnX = x*mapUnitSize;
+    setSpawnY = y*mapUnitSize;
   }
-  p.floorCount = 0;
-  p.spawnTimer = 0;
-  p.spawnComplete = false;
-  p.startSpawnStamp = engine.timing.timestamp;
-  console.log('start stamp of '+p.startSpawnStamp);
-  console.log('Start position at '+p.position.x +','+p.position.y);
-  Matter.World.add(engine.world, p);
+  else {
+    setSpawnX = sampleLevel.spawnpoints[pName].x;
+    setSpawnY = sampleLevel.spawnpoints[pName].y;    
+  }
+  player[pName].floorCount = 0;
+  player[pName].spawnTimer = 0;
+  player[pName].spawnComplete = false;
+  player[pName].startSpawnStamp = engine.timing.timestamp;
+  Matter.Body.setPosition(player[pName], Matter.Vector.create(setSpawnX,setSpawnY));
+  Matter.Body.setVelocity(player[pName], Matter.Vector.create(0,0));
+  console.log('start stamp of '+player[pName].startSpawnStamp);
+  console.log('Start position at '+player[pName].position.x +','+player[pName].position.y);
+  Matter.World.add(engine.world, player[pName]);
 }
 
 var renderOpts = {
@@ -134,18 +153,14 @@ var render = Matter.Render.create({
     options: renderOpts
 });
 
-
+var player = [];
 loadLevel(sampleLevel);
-var player = newPlayer(10,10,1);
-var player2 = newPlayer(35,10,2);
-spawnPlayer(player);
-spawnPlayer(player2);
-
+for (var i = 1; i <= 4; i++) {
+  player.push(newPlayer(i));
+  spawnPlayer(i);
+}
 Matter.Engine.run(engine);
 Matter.Render.run(render);
-
-
-var accelX = 0; var accelY = 0;
 
 var gyroargs = {
 	frequency:50,					// ( How often the object sends the values - milliseconds )
@@ -157,6 +172,10 @@ var gyroargs = {
 };
 
 var keyboardInput = false;
+
+var keyLegends = {
+  
+};
 
 var keys = {};
 /*
@@ -213,26 +232,21 @@ Matter.Events.on(engine, "afterUpdate", function(event) {
 });
 
 Matter.Events.on(engine, "beforeUpdate", function(event) {
-  var ay = [0,0], ax = [0,0];
+  var accelX, accelY;
   if(keyboardInput) {
-    if(keys["ArrowDown"]) {ay[1] -= 1;}
-    if(keys["ArrowUp"]) {ay[1] += 1;}
-    if(keys["ArrowLeft"]) {ax[1] -= 1;}
-    if(keys["ArrowRight"]) {ax[1] += 1;}
-    if(keys["s"]) {ay[0] -= 1;}
-    if(keys["w"]) {ay[0] += 1;}
-    if(keys["a"]) {ax[0] -= 1;}
-    if(keys["d"]) {ax[0] += 1;}
-    //console.log("ax and ay are "+ax+","+ay);
+    for (var i = 1; i <= 4; i++) { // loop player 1 to 4
+      accelX = 0;
+      accelY = 0;
+      for (var j = 0; j < 4; j++) { // loop key legend "up" "down" "left" "right"
+        if (keys[player[i].keyLegend[j].key]) { // check if key legend pressed
+          accelX += player[i].keyLegend[j].moveX; // add "+1" or "-1" [according to key legend j of player i] into accelX
+          accelY += player[i].keyLegend[j].moveY; // add "+1" or "-1" [according to key legend j of player i] into accelY
+        }
+      }
+      //console.log("ax and ay are "+accelX+","+accelY);
+      Matter.Body.applyForce(player[i], player[i].position, Matter.Vector.create(aX,-aY));
+    }
   }
-  accelX = ax[0];
-  accelY = ay[0];
-  Matter.Body.applyForce(player, player.position, Matter.Vector.create(accelX,-accelY));
-  accelX = ax[1];
-  accelY = ay[1];
-  Matter.Body.applyForce(player2, player2.position, Matter.Vector.create(accelX,-accelY));
-   console.log(player);
-  //console.log("x is "+accelX+", y is "+accelY);
 });
 
 function bodyEnergy(body) {
