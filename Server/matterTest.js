@@ -87,14 +87,14 @@ function killPlayer(p) {
 }
 function spawnPlayer(p, x, y) {
   if(x !== undefined && y !== undefined) {
-    p.position = Matter.Vector.create(x,y);
+    Matter.Body.setPosition(p, Matter.Vector.create(x*mapUnitSize,y*mapUnitSize));
   }
   p.floorCount = 0;
-  p.spawnTimer = 1000;
+  p.spawnTimer = 0;
   p.spawnComplete = false;
   p.startSpawnStamp = engine.timing.timestamp;
   console.log('start stamp of '+p.startSpawnStamp);
-  console.log('position at '+p.position.x +','+p.position.y);
+  console.log('Start position at '+p.position.x +','+p.position.y);
   Matter.World.add(engine.world, p);
 }
 
