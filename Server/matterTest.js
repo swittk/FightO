@@ -7,9 +7,11 @@ const playerDiameter = 10;
 const mapUnitSize = 15;
 
 
-function newPlayer(x, y) {
-  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir : 0.08, isStatic: false});
+function newPlayer(x, y, pname) {
+  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir: 0.005, isStatic: false});
   player.label = "player";
+  Matter.Body.setMass(player,2000);
+  player.labelname = pname;
   player.floorCount = 0;
   return player;
 }
@@ -88,6 +90,7 @@ function killPlayer(p) {
 function spawnPlayer(p, x, y) {
   if(x !== undefined && y !== undefined) {
     Matter.Body.setPosition(p, Matter.Vector.create(x*mapUnitSize,y*mapUnitSize));
+    Matter.Body.setVelocity(p,Matter.Vector.create(0,0));
   }
   p.floorCount = 0;
   p.spawnTimer = 0;
@@ -97,7 +100,6 @@ function spawnPlayer(p, x, y) {
   console.log('Start position at '+p.position.x +','+p.position.y);
   Matter.World.add(engine.world, p);
 }
-
 
 var renderOpts = {
   width: 800,
@@ -134,8 +136,10 @@ var render = Matter.Render.create({
 
 
 loadLevel(sampleLevel);
-var player = newPlayer(10,10);
+var player = newPlayer(10,10,1);
+var player2 = newPlayer(35,10,2);
 spawnPlayer(player);
+spawnPlayer(player2);
 
 Matter.Engine.run(engine);
 Matter.Render.run(render);
@@ -155,7 +159,7 @@ var gyroargs = {
 var keyboardInput = false;
 
 var keys = {};
-
+/*
 var gn = new GyroNorm();
 gn.init(gyroargs).then(function(){
   gn.start(function(data){
@@ -163,7 +167,7 @@ gn.init(gyroargs).then(function(){
    accelY = data.dm.gy		//( devicemotion event accelerationIncludingGravity y value )
    //data.dm.gz		( devicemotion event accelerationIncludingGravity z value )
   });
-}).catch(function(e){
+}).catch(function(e){*/
   // Catch if the DeviceOrientation or DeviceMotion is not supported by the browser or device
   console.log('no devicemotion present on device');
   console.log('should try keyboard input');
@@ -175,8 +179,8 @@ gn.init(gyroargs).then(function(){
   window.addEventListener('keyup',
     function(e){
       keys[e.key] = false;
-    }, false);
-});
+    }, false);/*
+});*/
 
 
 
@@ -194,20 +198,40 @@ Matter.Events.on(engine, "afterUpdate", function(event) {
     killPlayer(player);
     spawnPlayer(player, 10, 10);
   }
+  if(player2.spawnComplete == false) {
+    console.log('position at '+player2.position.x +','+player2.position.y);
+    //console.log('now stamp '+event.timestamp);
+    if(event.timestamp - player2.startSpawnStamp > player2.spawnTimer) {
+      player2.spawnComplete = true;
+      console.log('completed spawn');
+    }
+  }
+  else if(player2.floorCount < 1) {
+    killPlayer(player2);
+    spawnPlayer(player2, 35, 10);
+  }
 });
 
 Matter.Events.on(engine, "beforeUpdate", function(event) {
+  var ay = [0,0], ax = [0,0];
   if(keyboardInput) {
-    var ay = 0; var ax = 0;
-    if(keys["ArrowDown"] || keys["s"]) {ay -= 3;}
-    if(keys["ArrowUp"] || keys["w"]) {ay += 3;}
-    if(keys["ArrowLeft"] || keys["a"]) {ax -= 3;}
-    if(keys["ArrowRight"] || keys["d"]) {ax += 3;}
-    accelX = ax;
-    accelY = ay;
+    if(keys["ArrowDown"]) {ay[1] -= 1;}
+    if(keys["ArrowUp"]) {ay[1] += 1;}
+    if(keys["ArrowLeft"]) {ax[1] -= 1;}
+    if(keys["ArrowRight"]) {ax[1] += 1;}
+    if(keys["s"]) {ay[0] -= 1;}
+    if(keys["w"]) {ay[0] += 1;}
+    if(keys["a"]) {ax[0] -= 1;}
+    if(keys["d"]) {ax[0] += 1;}
     //console.log("ax and ay are "+ax+","+ay);
   }
-  Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001*player.mass*accelX,-0.001*player.mass*accelY));
+  accelX = ax[0];
+  accelY = ay[0];
+  Matter.Body.applyForce(player, player.position, Matter.Vector.create(accelX,-accelY));
+  accelX = ax[1];
+  accelY = ay[1];
+  Matter.Body.applyForce(player2, player2.position, Matter.Vector.create(accelX,-accelY));
+   console.log(player);
   //console.log("x is "+accelX+", y is "+accelY);
 });
 
@@ -238,7 +262,10 @@ Matter.Events.on(engine, "collisionStart", function(event) {
         }
       }
       else if(pair.bodyB.isFloor) {
-        player.floorCount = player.floorCount+1;
+        if (pair.bodyA.labelname==1)
+          player.floorCount = player.floorCount+1;
+        else if (pair.bodyA.labelname==2)
+          player2.floorCount = player2.floorCount+1;
         console.log('added floor');
       }
     }
@@ -250,7 +277,10 @@ Matter.Events.on(engine, "collisionStart", function(event) {
         }
       }
       else if(pair.bodyA.isFloor) {
-        player.floorCount = player.floorCount+1;
+        if (pair.bodyB.labelname==1)
+          player.floorCount = player.floorCount+1;
+        else if (pair.bodyB.labelname==2)
+          player2.floorCount = player2.floorCount+1;
         console.log('added floor');
       }
     }
@@ -265,13 +295,19 @@ Matter.Events.on(engine, "collisionEnd", function(event) {
     console.log("collision end between "+pair.bodyA.label+" and "+pair.bodyB.label);
     if(pair.bodyA.label == "player") {
       if(pair.bodyB.isFloor) {
-        player.floorCount = player.floorCount-1;
+        if (pair.bodyA.labelname==1)
+          player.floorCount = player.floorCount-1;
+        else if (pair.bodyA.labelname==2)
+          player2.floorCount = player2.floorCount-1;
         console.log('removed floor');
       }
     }
     else if(pair.bodyB.label == "player") {
       if(pair.bodyA.isFloor) {
-        player.floorCount = player.floorCount-1;
+        if (pair.bodyB.labelname==1)
+          player.floorCount = player.floorCount-1;
+        else if (pair.bodyB.labelname==2)
+          player2.floorCount = player2.floorCount-1;
         console.log('removed floor');
       }
     }
