@@ -9,10 +9,20 @@ const mapUnitSize = 15;
 
 function newPlayer(x, y) {
   var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir : 0.08, isStatic: false});
+  player.label = "player";
+  player.floorCount = 0;
   return player;
 }
 
-function newSquareWall(x,y,w,h) {
+function newFloorPiece(x,y,w,h) {
+  var ox = x + w/2;
+  var oy = y + h/2;
+  var floor = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true, isSensor : true});
+  floor.isFloor = true;
+  return floor;
+}
+
+function newWallPiece(x,y,w,h) {
   var ox = x + w/2;
   var oy = y + h/2;
   var wall = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true});
@@ -23,7 +33,10 @@ function newSquareWall(x,y,w,h) {
 var sampleLevel = {
   "size" : {w:100,h:100},
   "floor" : [
-    {x:0,y:0,w:100,h:100,surf:"grass"}
+    {x:0,y:0,w:12,h:100,surf:"grass"},
+    {x:12,y:0,w:20,h:12,surf:"grass"},
+    {x:32,y:0,w:12,h:100,surf:"grass"},
+    {x:12,y:18,w:20,h:12,surf:"grass"}
   ],
   "walls" : [
     {x:1,y:1,w:1,h:1,surf:"grass"},
@@ -53,9 +66,12 @@ var sampleLevel = {
 
 
 function loadLevel(level) {
-  
+  for(mapDesc of level.floor) {
+    var floor = newFloorPiece(mapDesc.x, mapDesc.y, mapDesc.w, mapDesc.h);
+    Matter.World.add(engine.world, floor);
+  }
   for(mapDesc of level.walls) {
-    var wall = newSquareWall(mapDesc.x, mapDesc.y, mapDesc.w, mapDesc.h);
+    var wall = newWallPiece(mapDesc.x, mapDesc.y, mapDesc.w, mapDesc.h);
     if(mapDesc.breakable) {
       wall.label = "breakblock";
       wall.render.fillStyle = '#C7F464';
@@ -63,6 +79,22 @@ function loadLevel(level) {
     }
     Matter.World.add(engine.world, wall);
   }
+}
+
+function killPlayer(p) {
+  Matter.World.remove(engine.world, p);
+  console.log("You died");
+}
+function spawnPlayer(p, x, y) {
+  if(x !== undefined && y !== undefined) {
+    p.setPosition(Matter.Vector.create(x,y));
+  }
+  p.floorCount = 0;
+  p.spawnTimer = 1000;
+  p.spawnComplete = false;
+  p.startSpawnStamp = engine.timing.timestamp;
+  console.log('start stamp of '+p.startSpawnStamp);
+  Matter.World.add(engine.world, p);
 }
 
 
@@ -102,8 +134,7 @@ var render = Matter.Render.create({
 
 loadLevel(sampleLevel);
 var player = newPlayer(10,10);
-player.label = "player";
-Matter.World.add(engine.world, player);
+spawnPlayer(player);
 
 Matter.Engine.run(engine);
 Matter.Render.run(render);
@@ -114,7 +145,7 @@ var accelX = 0; var accelY = 0;
 var gyroargs = {
 	frequency:50,					// ( How often the object sends the values - milliseconds )
 	gravityNormalized:false,			// ( If the gravity related values to be normalized )
-	orientationBase:GyroNorm.GAME,		// ( Can be GyroNorm.GAME or GyroNorm.WORLD. gn.GAME returns orientation values with respect to the head direction of the device. gn.WORLD returns the orientation values with respect to the actual north direction of the world. )
+	orientationBase:GyroNorm.WORLD,		// ( Can be GyroNorm.GAME or GyroNorm.WORLD. gn.GAME returns orientation values with respect to the head direction of the device. gn.WORLD returns the orientation values with respect to the actual north direction of the world. )
 	decimalCount:2,					// ( How many digits after the decimal point will there be in the return values )
 	logger:null,					// ( Function to be called to log messages from gyronorm.js )
 	screenAdjusted:false			// ( If set to true it will return screen adjusted values. )
@@ -148,13 +179,29 @@ gn.init(gyroargs).then(function(){
 
 
 
-Matter.Events.on(engine, "beforeUpdate", function() {
+Matter.Events.on(engine, "afterUpdate", function(event) {
+  //console.log('Total floorcount : '+player.floorCount);
+  if(player.spawnComplete == false) {
+    console.log('now stamp '+event.timestamp);
+    if(event.timestamp - player.startSpawnStamp > player.spawnTimer) {
+      player.spawnComplete = true;
+    }
+  }
+  else if(player.floorCount < 1) {
+    killPlayer(player);
+    player = null;
+    player = newPlayer(10, 10);
+    spawnPlayer(player, 10, 10);
+  }
+});
+
+Matter.Events.on(engine, "beforeUpdate", function(event) {
   if(keyboardInput) {
     var ay = 0; var ax = 0;
-    if(keys["ArrowDown"]) {ay -= 3;}
-    if(keys["ArrowUp"]) {ay += 3;}
-    if(keys["ArrowLeft"]) {ax -= 3;}
-    if(keys["ArrowRight"]) {ax += 3;}
+    if(keys["ArrowDown"] || keys["s"]) {ay -= 3;}
+    if(keys["ArrowUp"] || keys["w"]) {ay += 3;}
+    if(keys["ArrowLeft"] || keys["a"]) {ax -= 3;}
+    if(keys["ArrowRight"] || keys["d"]) {ax += 3;}
     accelX = ax;
     accelY = ay;
     //console.log("ax and ay are "+ax+","+ay);
@@ -162,7 +209,6 @@ Matter.Events.on(engine, "beforeUpdate", function() {
   Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001*player.mass*accelX,-0.001*player.mass*accelY));
   //console.log("x is "+accelX+", y is "+accelY);
 });
-
 
 function bodyEnergy(body) {
   return 0.5*body.mass*Math.pow(body.speed,2);
@@ -190,6 +236,10 @@ Matter.Events.on(engine, "collisionStart", function(event) {
           Matter.World.remove(engine.world, pair.bodyB);
         }
       }
+      else if(pair.bodyB.isFloor) {
+        player.floorCount = player.floorCount+1;
+        console.log('added floor');
+      }
     }
     else if(pair.bodyB.label == "player") {
       if(pair.bodyA.label == "breakblock") {
@@ -197,6 +247,31 @@ Matter.Events.on(engine, "collisionStart", function(event) {
         if(bodyEnergy(pair.bodyB) > pair.bodyA.breakenergy) {
           Matter.World.remove(engine.world, pair.bodyA);
         }
+      }
+      else if(pair.bodyA.isFloor) {
+        player.floorCount = player.floorCount+1;
+        console.log('added floor');
+      }
+    }
+  }
+});
+
+Matter.Events.on(engine, "collisionEnd", function(event) {
+  var pairs = event.pairs;
+  // change object colours to show those ending a collision
+  for (var i = 0; i < pairs.length; i++) {
+    var pair = pairs[i];
+    console.log("collision end between "+pair.bodyA.label+" and "+pair.bodyB.label);
+    if(pair.bodyA.label == "player") {
+      if(pair.bodyB.isFloor) {
+        player.floorCount = player.floorCount-1;
+        console.log('removed floor');
+      }
+    }
+    else if(pair.bodyB.label == "player") {
+      if(pair.bodyA.isFloor) {
+        player.floorCount = player.floorCount-1;
+        console.log('removed floor');
       }
     }
   }

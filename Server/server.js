@@ -2,6 +2,16 @@ const { Room, Server } = require('colyseus');
 
 const Matter = require('matter-js');
 
+
+class FightRoomState {
+  constructor(map, players) {
+    
+  }
+}
+
+
+
+
 var sampleLevel = {
   "size" : {w:100,h:100},
   "floor" : [
@@ -94,7 +104,6 @@ class FightOGame extends Room {
   
   loadMap(map) {
     //this.engine.world.add...
-    map.
   }
   
   loadEntities() {
