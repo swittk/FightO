@@ -87,13 +87,14 @@ function killPlayer(p) {
 }
 function spawnPlayer(p, x, y) {
   if(x !== undefined && y !== undefined) {
-    p.setPosition(Matter.Vector.create(x,y));
+    p.position = Matter.Vector.create(x,y);
   }
   p.floorCount = 0;
   p.spawnTimer = 1000;
   p.spawnComplete = false;
   p.startSpawnStamp = engine.timing.timestamp;
   console.log('start stamp of '+p.startSpawnStamp);
+  console.log('position at '+p.position.x +','+p.position.y);
   Matter.World.add(engine.world, p);
 }
 
@@ -182,15 +183,15 @@ gn.init(gyroargs).then(function(){
 Matter.Events.on(engine, "afterUpdate", function(event) {
   //console.log('Total floorcount : '+player.floorCount);
   if(player.spawnComplete == false) {
-    console.log('now stamp '+event.timestamp);
+    console.log('position at '+player.position.x +','+player.position.y);
+    //console.log('now stamp '+event.timestamp);
     if(event.timestamp - player.startSpawnStamp > player.spawnTimer) {
       player.spawnComplete = true;
+      console.log('completed spawn');
     }
   }
   else if(player.floorCount < 1) {
     killPlayer(player);
-    player = null;
-    player = newPlayer(10, 10);
     spawnPlayer(player, 10, 10);
   }
 });
