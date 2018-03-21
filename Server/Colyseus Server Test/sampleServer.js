@@ -57,9 +57,10 @@ function bodyEnergy(body) {
 }
 
 
-function newPlayer(x, y) {
-  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir : 0.08, isStatic: false});
+function newPlayer(x, y, pname) {
+  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir: 0.005, isStatic: false});
   player.label = "player";
+  Matter.Body.setMass(player,2000);
   player.floorCount = 0;
   return player;
 }
@@ -157,7 +158,9 @@ class FightOGame extends Room {
       self.state.position = player.position;
     });
     Matter.Events.on(this.engine, "beforeUpdate", function(event) {
-      Matter.Body.applyForce(player, player.position, Matter.Vector.create(0.001*player.mass*self.aX,-0.001*player.mass*self.aY));
+      var force = Matter.Vector.create(this.aX,-this.aY);
+      console.log('applying force '+JSON.stringify(force));
+      Matter.Body.applyForce(player, player.position, Matter.Vector.create(self.aX,-self.aY));
     });
   }
   
@@ -265,6 +268,7 @@ class FightOGame extends Room {
     if(data.type == 'accel') {
       this.aX = data.x;
       this.aY = data.y;
+      //console.log('received accel'+this.aX+this.aY);
     }
   }
 
