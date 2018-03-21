@@ -5,32 +5,8 @@ engine.world.gravity = Matter.Vector.create(0,0);
 
 const playerDiameter = 10;
 const mapUnitSize = 15;
-
-
-function newPlayer(x, y, pname) {
-  var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir: 0.005, isStatic: false});
-  player.label = "player";
-  Matter.Body.setMass(player,2000);
-  player.labelname = pname;
-  player.floorCount = 0;
-  return player;
-}
-
-function newFloorPiece(x,y,w,h) {
-  var ox = x + w/2;
-  var oy = y + h/2;
-  var floor = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true, isSensor : true});
-  floor.isFloor = true;
-  return floor;
-}
-
-function newWallPiece(x,y,w,h) {
-  var ox = x + w/2;
-  var oy = y + h/2;
-  var wall = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true});
-  console.log("added wall "+wall);
-  return wall;
-}
+const N_Player = 4; // number of players
+var player = [];
 
 var sampleLevel = {
   "size" : {w:100,h:100},
@@ -58,14 +34,68 @@ var sampleLevel = {
     }
   ],
   "spawnpoints" : [
-    {x:10, y:10},
-    {x:90, y:90},
-    {x:90, y:10},
-    {x:10, y:90}
-  ]
+    {x:0, y:0},  // Player 0 spawnpoints
+    {x:10, y:10}, // Player 1 spawnpoints
+    {x:35, y:10},
+    {x:10, y:30},
+    {x:35, y:30}
+  ] // corrected by champ according to new map
 }
 
+var keyLegendGlobal = [];
+keyLegendGlobal[1] = ["KeyW","KeyS","KeyA","KeyD"];
+keyLegendGlobal[2] = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
+keyLegendGlobal[3] = ["KeyI","KeyK","KeyJ","KeyL"];
+keyLegendGlobal[4] = ["Numpad5","Numpad2","Numpad1","Numpad3"];
 
+var directionLegend = [];
+directionLegend[0] = {x:0, y:1};  //Up
+directionLegend[1] = {x:0, y:-1}; //Down
+directionLegend[2] = {x:-1, y:0}; //Left
+directionLegend[3] = {x:1, y:0};  //Right
+
+function newPlayer(pname) {
+  var varPlayer = Matter.Bodies.circle(sampleLevel.spawnpoints[pname].x*mapUnitSize, sampleLevel.spawnpoints[pname].y*mapUnitSize, playerDiameter/2.0, {
+    frictionStatic: 0,
+    friction: 0,
+    frictionAir: 0.005,
+    restitution: 1,
+    label: "player", // label = type of body
+    floorCount: 0,
+    isStatic: false
+  });
+  varPlayer.labelname = pname; // pname = {1,2,3,4}
+  varPlayer.spawnX = sampleLevel.spawnpoints[pname].x; // location from sample level spawnpoints array
+  varPlayer.spawnY = sampleLevel.spawnpoints[pname].y;
+  var temp_keyLegend = [];
+  for (var i = 0; i < N_Player; i++){
+    var temp_keyType = {};                       // Set direction {  0,   1,   2,   3   } as
+    temp_keyType.key = keyLegendGlobal[pname][i];           // Key:  Up  Down Left Right
+    temp_keyType.moveX = directionLegend[i].x;            // moveX:  0    0   -1    1
+    temp_keyType.moveY = directionLegend[i].y;            // moveY:  1   -1    0    0
+    temp_keyLegend[i] = temp_keyType;
+  }
+  varPlayer.keyLegend = temp_keyLegend;
+  Matter.Body.setMass(varPlayer,2000); // Set mass to 2000
+  console.log(varPlayer);
+  return varPlayer;
+}
+
+function newFloorPiece(x,y,w,h) {
+  var ox = x + w/2;
+  var oy = y + h/2;
+  var floor = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true, isSensor : true});
+  floor.isFloor = true;
+  return floor;
+}
+
+function newWallPiece(x,y,w,h) {
+  var ox = x + w/2;
+  var oy = y + h/2;
+  var wall = Matter.Bodies.rectangle(ox*mapUnitSize, oy*mapUnitSize, w*mapUnitSize, h*mapUnitSize, {isStatic : true});
+  console.log("added wall "+wall);
+  return wall;
+}
 
 function loadLevel(level) {
   for(mapDesc of level.floor) {
@@ -83,22 +113,30 @@ function loadLevel(level) {
   }
 }
 
-function killPlayer(p) {
-  Matter.World.remove(engine.world, p);
+function killPlayer(pName) {
+  Matter.World.remove(engine.world, player[pName]);
   console.log("You died");
 }
-function spawnPlayer(p, x, y) {
+
+function spawnPlayer(pName, x, y) {
+  var setSpawnX, setSpawnY;
   if(x !== undefined && y !== undefined) {
-    Matter.Body.setPosition(p, Matter.Vector.create(x*mapUnitSize,y*mapUnitSize));
-    Matter.Body.setVelocity(p,Matter.Vector.create(0,0));
+    setSpawnX = x*mapUnitSize;
+    setSpawnY = y*mapUnitSize;
   }
-  p.floorCount = 0;
-  p.spawnTimer = 0;
-  p.spawnComplete = false;
-  p.startSpawnStamp = engine.timing.timestamp;
-  console.log('start stamp of '+p.startSpawnStamp);
-  console.log('Start position at '+p.position.x +','+p.position.y);
-  Matter.World.add(engine.world, p);
+  else {
+    setSpawnX = sampleLevel.spawnpoints[pName].x*mapUnitSize;
+    setSpawnY = sampleLevel.spawnpoints[pName].y*mapUnitSize;    
+  }
+  player[pName].floorCount = 0;
+  player[pName].spawnTimer = 0;
+  player[pName].spawnComplete = false;
+  player[pName].startSpawnStamp = engine.timing.timestamp;
+  Matter.Body.setPosition(player[pName], Matter.Vector.create(setSpawnX,setSpawnY));
+  Matter.Body.setVelocity(player[pName], Matter.Vector.create(0,0));
+  console.log('start stamp of '+player[pName].startSpawnStamp);
+  console.log('Start position at '+player[pName].position.x +','+player[pName].position.y);
+  Matter.World.add(engine.world, player[pName]);
 }
 
 var renderOpts = {
@@ -134,18 +172,13 @@ var render = Matter.Render.create({
     options: renderOpts
 });
 
-
 loadLevel(sampleLevel);
-var player = newPlayer(10,10,1);
-var player2 = newPlayer(35,10,2);
-spawnPlayer(player);
-spawnPlayer(player2);
-
+for (var i = 1; i <= N_Player; i++) {
+  player[i] = newPlayer(i);
+  spawnPlayer(i);
+}
 Matter.Engine.run(engine);
 Matter.Render.run(render);
-
-
-var accelX = 0; var accelY = 0;
 
 var gyroargs = {
 	frequency:50,					// ( How often the object sends the values - milliseconds )
@@ -157,6 +190,10 @@ var gyroargs = {
 };
 
 var keyboardInput = false;
+
+var keyLegends = {
+  
+};
 
 var keys = {};
 
@@ -174,65 +211,54 @@ gn.init(gyroargs).then(function(){
   keyboardInput = true;
   window.addEventListener("keydown",
     function(e){
-      keys[e.key] = true;
+      keys[e.code] = true;
     }, false);
   window.addEventListener('keyup',
     function(e){
-      keys[e.key] = false;
-    }, false);
-});
+<<<<<<< HEAD
+=======
+      keys[e.code] = false;
+    }, false);/*
+});*/
+>>>>>>> cb451d805c0bc5416ae84f72467869f92bde77d7
 
 
 
 Matter.Events.on(engine, "afterUpdate", function(event) {
   //console.log('Total floorcount : '+player.floorCount);
-  if(player.spawnComplete == false) {
-    console.log('position at '+player.position.x +','+player.position.y);
-    //console.log('now stamp '+event.timestamp);
-    if(event.timestamp - player.startSpawnStamp > player.spawnTimer) {
-      player.spawnComplete = true;
-      console.log('completed spawn');
+  for (var i = 1; i <= N_Player; i++) {
+    if(player[i].spawnComplete == false) {
+      console.log('position at '+player[i].position.x +','+player[i].position.y);
+      //console.log('now stamp '+event.timestamp);
+      if(event.timestamp - player[i].startSpawnStamp > player[i].spawnTimer) {
+        player[i].spawnComplete = true;
+        console.log('completed spawn');
+      }
     }
-  }
-  else if(player.floorCount < 1) {
-    killPlayer(player);
-    spawnPlayer(player, 10, 10);
-  }
-  if(player2.spawnComplete == false) {
-    console.log('position at '+player2.position.x +','+player2.position.y);
-    //console.log('now stamp '+event.timestamp);
-    if(event.timestamp - player2.startSpawnStamp > player2.spawnTimer) {
-      player2.spawnComplete = true;
-      console.log('completed spawn');
+    else if(player[i].floorCount < 1) {
+      console.log("Player " + i + " : killed");
+      killPlayer(i);
+      spawnPlayer(i);
     }
-  }
-  else if(player2.floorCount < 1) {
-    killPlayer(player2);
-    spawnPlayer(player2, 35, 10);
   }
 });
 
 Matter.Events.on(engine, "beforeUpdate", function(event) {
-  var ay = [0,0], ax = [0,0];
+  var accelX, accelY;
   if(keyboardInput) {
-    if(keys["ArrowDown"]) {ay[1] -= 1;}
-    if(keys["ArrowUp"]) {ay[1] += 1;}
-    if(keys["ArrowLeft"]) {ax[1] -= 1;}
-    if(keys["ArrowRight"]) {ax[1] += 1;}
-    if(keys["s"]) {ay[0] -= 1;}
-    if(keys["w"]) {ay[0] += 1;}
-    if(keys["a"]) {ax[0] -= 1;}
-    if(keys["d"]) {ax[0] += 1;}
-    //console.log("ax and ay are "+ax+","+ay);
+    for (var i = 1; i <= N_Player; i++) { // loop player 1 to 4
+      accelX = 0;
+      accelY = 0;
+      for (var j = 0; j < 4; j++) { // loop key legend "up" "down" "left" "right"
+        if (keys[player[i].keyLegend[j].key]) { // check if key legend pressed
+          accelX += player[i].keyLegend[j].moveX; // add "+1" or "-1" [according to key legend j of player i] into accelX
+          accelY += player[i].keyLegend[j].moveY; // add "+1" or "-1" [according to key legend j of player i] into accelY
+        }
+      }
+      //console.log("ax and ay are "+accelX+","+accelY);
+      Matter.Body.applyForce(player[i], player[i].position, Matter.Vector.create(accelX,-accelY));
+    }
   }
-  accelX = ax[0];
-  accelY = ay[0];
-  Matter.Body.applyForce(player, player.position, Matter.Vector.create(accelX,-accelY));
-  accelX = ax[1];
-  accelY = ay[1];
-  Matter.Body.applyForce(player2, player2.position, Matter.Vector.create(accelX,-accelY));
-   console.log(player);
-  //console.log("x is "+accelX+", y is "+accelY);
 });
 
 function bodyEnergy(body) {
@@ -254,6 +280,7 @@ Matter.Events.on(engine, "collisionStart", function(event) {
   for (var i = 0; i < pairs.length; i++) {
     var pair = pairs[i];
     console.log("collision between "+pair.bodyA.label+" and "+pair.bodyB.label);
+    
     if(pair.bodyA.label == "player") {
       if(pair.bodyB.label == "breakblock") {
         logPlayerCollision(pair.bodyA);
@@ -262,10 +289,7 @@ Matter.Events.on(engine, "collisionStart", function(event) {
         }
       }
       else if(pair.bodyB.isFloor) {
-        if (pair.bodyA.labelname==1)
-          player.floorCount = player.floorCount+1;
-        else if (pair.bodyA.labelname==2)
-          player2.floorCount = player2.floorCount+1;
+        player[pair.bodyA.labelname].floorCount++;
         console.log('added floor');
       }
     }
@@ -273,14 +297,11 @@ Matter.Events.on(engine, "collisionStart", function(event) {
       if(pair.bodyA.label == "breakblock") {
         logPlayerCollision(pair.bodyB);
         if(bodyEnergy(pair.bodyB) > pair.bodyA.breakenergy) {
-          Matter.World.remove(engine.world, pair.bodyA);
+          Matter.World.remove(engine.world, pair.bodyA); 
         }
       }
       else if(pair.bodyA.isFloor) {
-        if (pair.bodyB.labelname==1)
-          player.floorCount = player.floorCount+1;
-        else if (pair.bodyB.labelname==2)
-          player2.floorCount = player2.floorCount+1;
+        player[pair.bodyB.labelname].floorCount++;
         console.log('added floor');
       }
     }
@@ -295,19 +316,13 @@ Matter.Events.on(engine, "collisionEnd", function(event) {
     console.log("collision end between "+pair.bodyA.label+" and "+pair.bodyB.label);
     if(pair.bodyA.label == "player") {
       if(pair.bodyB.isFloor) {
-        if (pair.bodyA.labelname==1)
-          player.floorCount = player.floorCount-1;
-        else if (pair.bodyA.labelname==2)
-          player2.floorCount = player2.floorCount-1;
+        player[pair.bodyA.labelname].floorCount--;
         console.log('removed floor');
       }
     }
     else if(pair.bodyB.label == "player") {
       if(pair.bodyA.isFloor) {
-        if (pair.bodyB.labelname==1)
-          player.floorCount = player.floorCount-1;
-        else if (pair.bodyB.labelname==2)
-          player2.floorCount = player2.floorCount-1;
+        player[pair.bodyB.labelname].floorCount--;
         console.log('removed floor');
       }
     }
