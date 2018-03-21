@@ -159,7 +159,7 @@ var gyroargs = {
 var keyboardInput = false;
 
 var keys = {};
-/*
+
 var gn = new GyroNorm();
 gn.init(gyroargs).then(function(){
   gn.start(function(data){
@@ -167,7 +167,7 @@ gn.init(gyroargs).then(function(){
    accelY = data.dm.gy		//( devicemotion event accelerationIncludingGravity y value )
    //data.dm.gz		( devicemotion event accelerationIncludingGravity z value )
   });
-}).catch(function(e){*/
+}).catch(function(e){
   // Catch if the DeviceOrientation or DeviceMotion is not supported by the browser or device
   console.log('no devicemotion present on device');
   console.log('should try keyboard input');
@@ -179,8 +179,8 @@ gn.init(gyroargs).then(function(){
   window.addEventListener('keyup',
     function(e){
       keys[e.key] = false;
-    }, false);/*
-});*/
+    }, false);
+});
 
 
 
