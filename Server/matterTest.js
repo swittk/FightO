@@ -215,12 +215,9 @@ gn.init(gyroargs).then(function(){
     }, false);
   window.addEventListener('keyup',
     function(e){
-<<<<<<< HEAD
-=======
       keys[e.code] = false;
-    }, false);/*
-});*/
->>>>>>> cb451d805c0bc5416ae84f72467869f92bde77d7
+    }, false);
+});
 
 
 
