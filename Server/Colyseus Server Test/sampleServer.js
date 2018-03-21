@@ -49,6 +49,13 @@ var options = {
 */
   
 
+function logPlayerCollision(body) {
+  console.log("energy:"+bodyEnergy(body)+".vel:"+body.velocity+".mass:"+body.mass);
+}
+function bodyEnergy(body) {
+  return 0.5*body.mass*Math.pow(body.speed,2);
+}
+
 
 function newPlayer(x, y) {
   var player = Matter.Bodies.circle(x*mapUnitSize, y*mapUnitSize, playerDiameter/2.0, {frictionAir : 0.08, isStatic: false});
@@ -112,7 +119,7 @@ class FightOGame extends Room {
     
     this.loadMap(options.map);
     Matter.Engine.run(this.engine, options);
-    this.setState(new GameState());
+    this.setState(new GameState(options.map));
   }
   
   loadMap(map) {
