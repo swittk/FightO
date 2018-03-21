@@ -7,7 +7,9 @@ const mapUnitSize = 15;
 
 
 /**
-  * Ugly patch to get Matter.js running on server
+  * Ugly patch to get Matter.js Runner running on server
+  *
+  * Either use this or change to manual updating using Engine.update(engine, 1000 / 60);
   */
   
 global.document = {
