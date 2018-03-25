@@ -1,4 +1,4 @@
-var client = /*new Colyseus.Client('ws://localhost:4000')*/new Colyseus.Client('wss://fighto.herokuapp.com');
+var client = new Colyseus.Client('ws://localhost:4000')//new Colyseus.Client('wss://fighto.herokuapp.com');
 
 
 var room = client.join("sample");

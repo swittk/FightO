@@ -78,6 +78,7 @@ class GameState {
     this.clients = [];
     this.stateSnaps = [];
     this.map = map;
+    
     Object.defineProperty(this, 'engine', {value:engine, enumerable:false});
     Object.defineProperty(this, 'mapDynamics', {
       value : map_dynamics,
@@ -145,11 +146,12 @@ class FightOGame extends Room {
     
     //clone the map object, since we will modify it in our loadMap method
     this.map = JSON.parse(JSON.stringify(options.map));    
-    this.loadMap(map); //this also creates this.stateObject.
+    this.loadMap(this.map); //this also creates this.stateObject.
     //now this.stateObject is created.
     
+    var self = this;
     this.setSimulationInterval(function() {
-      this.stateObject.snapState();
+      self.stateObject.snapState();
     }, 50);
     //callback loop to perform snapState() on our GameState object.
     
@@ -160,8 +162,8 @@ class FightOGame extends Room {
     //run the engine
   }
   nextWorldObjectID() {
-    worldobjectidgennum ++;
-    return worldobjectidgennum;
+    this.worldobjectidgennum ++;
+    return this.worldobjectidgennum;
   }
   
   
@@ -174,8 +176,9 @@ class FightOGame extends Room {
     // 2. map defined dynamic pieces
     // 3. runtime dynamic pieces
     var mapDynamics = {};
+    var self = this;
     function assignObjectIdAndRegisterIfDynamic(mapDesc, body) {
-      var id = this.nextWorldObjectID();
+      var id = self.nextWorldObjectID();
       mapDesc.objectid = id;
       body.objectid = id;
       if(mapDesc.dynamic) {
@@ -307,17 +310,20 @@ class FightOGame extends Room {
     console.log("You died");
   }
   
-  
+  addRuntimeDynamicObject() {
+  }
+  removeRuntimeDynamicObject() {
+  }
   
   addPlayerWithClient(client) {
-    var player = new GamePlayer(client, newPlayerBody())
+    var thisPlayerIndex = this.players.length + 1;
+    var spawnPointData = this.map.spawnpoints[thisPlayerIndex];
+    var player = new GamePlayer(client, spawnPointData.x, spawnPointData.y);
     this.players.push(player);
   }
   
   removePlayerWithClient(client) {
   }
-  
-  
   
   // Checks if a new client is allowed to join. (default: `return true`)
   requestJoin (options/**any*/, isNew/**boolean*/) {
@@ -328,7 +334,7 @@ class FightOGame extends Room {
   // When client successfully join the room
   onJoin (client/**Client*/) {
     //dunno..
-    this.addPlayerFromClient(client);
+    this.addPlayerWithClient(client);
   }
 
   // When a client leaves the room

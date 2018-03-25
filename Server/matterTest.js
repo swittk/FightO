@@ -109,6 +109,9 @@ function loadLevel(level) {
       wall.render.fillStyle = '#C7F464';
       wall.breakenergy = mapDesc.breakenergy;
     }
+    else {
+      wall.render.fillStyle = '#AA1A1D';
+    }
     Matter.World.add(engine.world, wall);
   }
 }
