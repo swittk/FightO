@@ -1,0 +1,22 @@
+<html>
+<body>
+<form id="form">
+    <input type="text" id="input" value="" />
+    <input type="submit" value="send" />
+</form>
+<script src="gyronorm.complete.min.js"></script>
+<script src="colyseus.js"></script>
+<script src="matter.js"></script>
+<script>
+  document.getElementById('form').onsubmit = function(e) {
+  e.preventDefault();
+  var input = document.getElementById('input').value;
+  room.send(input);
+  // room.send(document.getElementById('input').value);
+  document.getElementById('input').value = null
+}
+</script>
+</body>
+<script src="sampleClient.js"></script>
+</script>
+</html>

@@ -4,8 +4,13 @@ const Matter = require('matter-js');
 
 
 class FightRoomState {
-  constructor(map, players) {
-    
+  constructor(map, players, playerBodies) {
+    this.map = map;
+    this.dynamicFloors = [];
+    this.dynamicWalls = [];
+    this.entities = [];
+    this.players = players;
+    this.playerBodies = [];
   }
 }
 
