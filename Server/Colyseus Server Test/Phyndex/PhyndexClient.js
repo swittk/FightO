@@ -12,8 +12,10 @@ const mapUnitSize = 15;
 var player = newPlayer(10,10,1);
 
 room.onJoin.add(function() {
-  room.send({type:"nameset", name : "switty"});
-})
+  console.log("joined successfully");
+  var now = (new Date()).getTime();
+  room.send({type:"nameset", name : "switty", ts : now});
+});
 room.onUpdate.add(function(state) {
   //console.log(room.name, "has new state:", state)
   if(!loadedMap && !isLoadingMap) {
@@ -24,7 +26,12 @@ room.onUpdate.add(function(state) {
     console.log("map is "+JSON.stringify(state));
   }
   Matter.Body.setPosition(player, Matter.Vector.create(state.position.x, state.position.y));
-})
+});
+
+room.onData.add(function(message) {
+  console.log(" message ");
+  console.log("new message "+JSON.stringify(message));
+});
 
 
 var loadedMap = false;

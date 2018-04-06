@@ -15,6 +15,19 @@ const mapUnitSize = 15;
 
 const Matter = require('matter-js');
 
+function FightOMessage(type, payload) {
+  this.type = type;
+  
+  //getTime returns epoch time in milliseconds (an integer)
+  this.timestamp = (new Date()).getTime();
+  this.payload = payload;
+}
+
+function ActiveUpdateMessage(items) {
+  FightOMessage.call(this, "AUM", items);
+}
+extend(FightOMessage, ActiveUpdateMessage);
+
 
 class Phyndex {
   constructor(engine) {
@@ -110,8 +123,7 @@ class FightOPlayer {
   
   die() {this.lives -= 1;}
   turnDead() {this.lives = 0;}
-} 
-
+}
 
 /**
   
@@ -145,6 +157,13 @@ class FightOPlayer {
   
   - Player Management
     - addPlayerWithName(name) -- As the name says
+  
+  - Communication
+    - addActive(index), removeActive(index) : Adds and removes indices of objects to be tracked
+    - getActiveIndices() : Returns the currently tracked active indices.
+    - createActiveUpdateMessage()
+      - Creates an "active update message"; all the states of the bodies with indices added
+      as "active"
   */
 class FightOEngine {
   constructor(engine) {
@@ -154,6 +173,8 @@ class FightOEngine {
     else this.engine = engine;    
     this.phyndex = new Phyndex(this.engine);    
     this.players = [];
+    
+    this.activeIndices = new Map();
     
     this.engine.world.gravity = Matter.Vector.create(0,0);
     this.registerEngineForPlayerFloor();
@@ -398,9 +419,49 @@ class FightOEngine {
     }
     console.log("loaded Map");
   }
+  
+  addActive(index) {
+    this.activeIndices.set(index, true);
+  }
+  removeActive(index) {
+    this.activeIndices.delete(index);
+  }
+  getActiveIndices() {
+    return Array.from(this.activeIndices.keys());
+  }
+  createActiveUpdateMessage() {    
+    var items = [];
+    var iterator = this.activeIndices.keys();
+    var item;
+    while (item = iterator.next(), !item.done) {
+      var bodyindex = item.value;
+      var body = this.getBody(index);
+      var bodystats = {"idx":bodyindex, "p":body.position, "v":body.velocity};
+      items.push(bodystats);
+    }
+    
+    return new ActiveUpdateMessage(items);
+  }
 }
 
 module.exports = {
   Phyndex : Phyndex,
   FightOEngine : FightOEngine
+}
+
+function extend(base, sub) {
+  // Avoid instantiating the base class just to setup inheritance
+  // Also, do a recursive merge of two prototypes, so we don't overwrite 
+  // the existing prototype, but still maintain the inheritance chain
+  // Thanks to @ccnokes
+  var origProto = sub.prototype;
+  sub.prototype = Object.create(base.prototype);
+  for (var key in origProto)  {
+     sub.prototype[key] = origProto[key];
+  }
+  // The constructor property was set wrong, let's fix it
+  Object.defineProperty(sub.prototype, 'constructor', { 
+    enumerable: false, 
+    value: sub 
+  });
 }
