@@ -65,6 +65,13 @@ var phyndexMap = {
     ],
   },
   "dynamic" : {
+    "floor" : [
+    ],
+    "walls" : [
+    ],
+    "spawners" : [
+    ],
+
   }
 }
 
@@ -157,7 +164,7 @@ class FightOGame extends Room {
   
   sendActiveUpdateMessage() {
     var message = this.fightEngine.createActiveUpdateMessage();
-    console.log("send message" + JSON.stringify(message));
+    //console.log("send active message" + JSON.stringify(message));
     this.broadcast(message);
   }
 }
@@ -170,7 +177,7 @@ class FightOGame extends Room {
 
 const httpServer = http.createServer();
 var fightoServer = new Server();
-fightoServer.register("sample", FightOGame, {map:sampleLevel});
+fightoServer.register("sample", FightOGame, {map:phyndexMap});
 
 fightoServer.attach({ server: httpServer });
 fightoServer.listen(4000)

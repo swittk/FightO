@@ -1,5 +1,21 @@
 var client = new Colyseus.Client('ws://localhost:4000')//new Colyseus.Client('wss://fighto.herokuapp.com');
 
+function nameSet() {
+  var name = document.getElementById("nameInput").value;
+  var now = (new Date()).getTime();
+  room.send({type:"nameset", name : name, ts : now});
+  removeById("enternametostarttext");
+  removeById("nameInput");
+}
+function removeById(id) {
+  var element = document.getElementById(id);
+
+  // A bit of robustness helps...
+  if (element && element.parentNode) {
+    element.parentNode.removeChild(element);
+  }
+}
+
 
 var room = client.join("sample");
 
@@ -13,8 +29,6 @@ var player = newPlayer(10,10,1);
 
 room.onJoin.add(function() {
   console.log("joined successfully");
-  var now = (new Date()).getTime();
-  room.send({type:"nameset", name : "switty", ts : now});
 });
 room.onUpdate.add(function(state) {
   //console.log(room.name, "has new state:", state)

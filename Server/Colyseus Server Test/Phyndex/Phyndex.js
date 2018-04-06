@@ -164,6 +164,11 @@ class FightOPlayer {
     - createActiveUpdateMessage()
       - Creates an "active update message"; all the states of the bodies with indices added
       as "active"
+    
+  
+  - Debug/Display
+    - createRenderTarget()
+      - Call this to render the engine using Matter's default Renderer to the HTML document body
   */
 class FightOEngine {
   constructor(engine) {
@@ -233,7 +238,10 @@ class FightOEngine {
     var player = new FightOPlayer(name, bodyIndex);
     console.log("created player");    
     this.players.push(player);
-    console.log("pushed player");    
+    console.log("pushed player");
+    
+    this.addActive(bodyIndex);
+    
     return player;
   }
   
@@ -315,12 +323,13 @@ class FightOEngine {
   }
   
   removeBody(index) {
+    this.removeActive(index); //Don't forget to remove this body from the active list :)
     this.phyndex.remove(index);
   }
   removeBodyWithBody(body) {
     var index = this.phyndex.find(body);
     if(index != undefined) {
-      this.phyndex.remove(index);
+      this.remove(index);
       return true;
     }
     else return false;
@@ -396,7 +405,12 @@ class FightOEngine {
   
   loadMap(map) {
     this.map = map;
-    for(var mapDesc of map.floor) {
+    this.loadMapComponent(map.static);
+    this.loadMapComponent(map.dynamic);
+    console.log("loaded Map");
+  }
+  loadMapComponent(component) {
+    for(var mapDesc of component.floor) {
       mapDesc.type = "rectangle";
       mapDesc.options = {
         isStatic : true,
@@ -407,7 +421,7 @@ class FightOEngine {
       var index = this.createBodyWithDescriptor(mapDesc);
       //we have the index, but we don't really need it here...
     }
-    for(var mapDesc of map.walls) {
+    for(var mapDesc of component.walls) {
       mapDesc.type = "rectangle";
       mapDesc.options = {
         isStatic : true,
@@ -417,7 +431,6 @@ class FightOEngine {
       var wallindex = this.createBodyWithDescriptor(mapDesc);
       //we have the index, but we don't really need it here...
     }
-    console.log("loaded Map");
   }
   
   addActive(index) {
@@ -441,6 +454,42 @@ class FightOEngine {
     }
     
     return new ActiveUpdateMessage(items);
+  }
+  
+  
+  createRenderTarget() {
+    var renderOpts = {
+      width: 800, height: 600,
+      pixelRatio: 1, 
+      background: '#fafafa', wireframeBackground: '#222',
+      hasBounds: false,
+      enabled: true,
+      wireframes: false,
+      showSleeping: true,
+      showDebug: false,
+      showBroadphase: false,
+      showBounds: false,
+      showVelocity: false,
+      showCollisions: false,
+      showSeparations: false,
+      showAxes: false,
+      showPositions: false,
+      showAngleIndicator: false,
+      showIds: false,
+      showShadows: false,
+      showVertexNumbers: false,
+      showConvexHulls: false,
+      showInternalEdges: false,
+      showMousePosition: false
+    }
+
+    var render = Matter.Render.create({
+        element: document.body,
+        engine: engine,
+        options: renderOpts
+    });
+    
+    Matter.Render.run(render);
   }
 }
 
