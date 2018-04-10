@@ -8,12 +8,32 @@
   - "collisionStartCallback", and
   - "collisionEndCallback"
 */
+var root = this; 
+// Create a reference to this
+var _ = new Object();
+var isNode = false;
+// Export the Underscore object for **CommonJS**, with backwards-compatibility
+// for the old `require()` API. If we're not in CommonJS, add `_` to the
+// global object.
+if (typeof module !== 'undefined' && module.exports) {
+        module.exports = _;
+        root._ = _;
+        isNode = true;
+} else {
+        root._ = _;
+}
+
 
 const playerDiameter = 10;
 const mapUnitSize = 15;
 
-
-const Matter = require('matter-js');
+if ( typeof Matter !== 'undefined' && Matter )
+{
+  //do stuff if Matter is defined and not null
+}
+else {
+  Matter = require('matter-js');
+}
 
 function FightOMessage(type, payload) {
   this.type = type;
@@ -29,6 +49,28 @@ function ActiveUpdateMessage(items) {
 extend(FightOMessage, ActiveUpdateMessage);
 
 
+class FightOGameObject {
+  constructor(bodyd, assetd) {
+    this.bodyd = bodyd;
+    this.assetd = assetd;
+  }
+}
+
+class FightOGameState {
+  constructor() {
+    this.staticObjects = {};
+    this.currentStaticIndex = 0;
+    
+    this.dynamicObjects = {};
+    this.currentDynamicIndex = 0;
+  }
+  
+  addStaticGameObject(id, bodyd, assetd, isActive) {
+    
+  }
+  
+}
+
 class Phyndex {
   constructor(engine) {
     this.lastIndex = -1;
@@ -36,13 +78,13 @@ class Phyndex {
       this.engine = Matter.Engine.create();
     }
     else {this.engine = engine;}
-    this.indices = new Map();
+    this.indices = {};
   }
   
   lastIndex() { return this.lastIndex; }
   newIndex() {
     this.lastIndex++;
-    while(this.indices.has(this.lastIndex)) {this.lastIndex++;}
+    while(this.lastIndex in this.indices) {this.lastIndex++;}
     return this.lastIndex;
   }
   
@@ -53,7 +95,7 @@ class Phyndex {
     Matter.World.add(this.engine.world, body);
     var index = this.newIndex();
     body.index = index;
-    this.indices.set(index, body);
+    this.indices[index] = body;
     return index;
   }
   
@@ -61,22 +103,22 @@ class Phyndex {
     @return undefined
   */
   remove(index) {
-    var body = this.indices.get(index);
+    var body = this.indices[index];
     delete body.index;
     Matter.World.remove(this.engine.world, body);
-    this.indices.delete(index);
+    delete this.indices[index];
   }
   
   /**
     @param {Integer} index The index of the body
     @return {Matter.Body} The body with the index
   */
-  get(index) { return this.indices.get(index); }
+  get(index) { return this.indices[index]; }
   
   /** Alternative to Phyndex.has*/
   exists(index) { return this.has(index); }
   /** @return {boolean} If there is a body with the index specified*/
-  has(index) { return this.indices.has(index); }
+  has(index) { return index in this.indices; }
   
   /** 
     Adds the body to the world, replacing the index if it was in use
@@ -86,13 +128,13 @@ class Phyndex {
     
     Matter.World.add(this.engine.world, body);
     body.index = index;
-    this.indices.set(index, body);
+    this.indices[index] = body;
     return index;
   }
   
   find(body) {
     //convert entries ( iterator[[key, value]] ) to array
-    var array = Array.from(this.indices.entries());
+    var array = this.indices.keys;
     
     //find [key,value] pair in array
     var bodypair = array.find(function(element) {
@@ -124,6 +166,8 @@ class FightOPlayer {
   die() {this.lives -= 1;}
   turnDead() {this.lives = 0;}
 }
+
+
 
 /**
   
@@ -185,6 +229,9 @@ class FightOEngine {
     this.registerEngineForPlayerFloor();
     this.registerEngineForForces();
     this.registerEngineForCollisions();
+    
+    this.stateObject = {};
+    this.stateObjectIndex = 0;
   }
   
   step(dt) {
@@ -192,7 +239,11 @@ class FightOEngine {
     this.phyndex.step(dt);
   }
   
-  setPosition(index, x, y) { Matter.Body.setPosition(this.getBody(index), Matter.Vector.create(x, y)); }
+  setPosition(index, x, y) { 
+    var body = this.getBody(index);
+    console.log("body is "+body+", id is "+index);
+    Matter.Body.setPosition(body, Matter.Vector.create(x, y));
+  }
   
   setVelocity(index, x, y) { Matter.Body.setVelocity(this.getBody(index), Matter.Vector.create(x, y)); }
   
@@ -252,6 +303,8 @@ class FightOEngine {
   createBodyWithDescriptor(descriptor, _index) {
     var body;
     
+    var options = descriptor.options;
+    
     //TODO: add code to generate types of bodies here
     switch(descriptor.type) {
       case "circle" : {
@@ -259,7 +312,7 @@ class FightOEngine {
           descriptor.x * mapUnitSize, 
           descriptor.y * mapUnitSize, 
           descriptor.r * mapUnitSize, 
-          descriptor.options
+          options
         );
       } break;
       case "rectangle" : {
@@ -268,7 +321,7 @@ class FightOEngine {
           descriptor.y * mapUnitSize,
           descriptor.w * mapUnitSize,
           descriptor.h * mapUnitSize,
-          descriptor.options
+          options
         );
       } break;
       
@@ -300,6 +353,21 @@ class FightOEngine {
     return index;
   }
   
+  addObject(object, isActive) {
+    this.stateObjectIndex++;
+    this.stateObject[this.stateObjectIndex] = {object:object, isActive:isActive};
+    this.addBody(object.bodyd, this.stateObjectIndex);
+  }
+  
+  setObject(index, object, isActive) {
+    this.stateObject[index] = {object:object, isActive:isActive};
+    this.addBody(object.bodyd, index);
+  }
+  
+  getObject(index) {
+    
+  }
+  
   /**
     @param {Matter.Body} body : The body to be added
     @param {Integer} _index : (Optional) Mostly used when we want to replace a previous index
@@ -315,6 +383,7 @@ class FightOEngine {
     else {
       index = this.phyndex.add(body);
     }
+    
     return index;
   }
   
@@ -405,31 +474,37 @@ class FightOEngine {
   
   loadMap(map) {
     this.map = map;
+    this.parseMapToStateObject(map);
     this.loadMapComponent(map.static);
     this.loadMapComponent(map.dynamic);
     console.log("loaded Map");
   }
-  loadMapComponent(component) {
-    for(var mapDesc of component.floor) {
-      mapDesc.type = "rectangle";
-      mapDesc.options = {
+  
+  parseMapToStateObject(map) {
+    for(var object of map.floor) {
+      var bodyd = object.bodyd;
+      
+      var options = {
         isStatic : true,
         isSensor : true,
         typeLabel : "floor",
-        floorIncrement : 1
+        floorIncrement : ((object.floorIncrement !== undefined) ? object.floorIncrement : 1)
       };
-      var index = this.createBodyWithDescriptor(mapDesc);
-      //we have the index, but we don't really need it here...
+      
+      var assetd = object.assetd;
+      
+      var isActive = object.isActive ? true : false;
+      this.addObject(bodyd, assetd, isActive);
     }
-    for(var mapDesc of component.walls) {
-      mapDesc.type = "rectangle";
-      mapDesc.options = {
+    for(var object of map.wall) {
+      var bodyd = object.bodyd;
+      var assetd = object.assetd;
+      var options = {
         isStatic : true,
-        breakable : true,
-        breakenergy : 4.5
-      };
-      var wallindex = this.createBodyWithDescriptor(mapDesc);
-      //we have the index, but we don't really need it here...
+        typeLabel : "wall"
+      }
+      var isActive = object.isActive ? true : false;
+      this.addObject(bodyd, assetd, isActive);
     }
   }
   
@@ -448,7 +523,7 @@ class FightOEngine {
     var item;
     while (item = iterator.next(), !item.done) {
       var bodyindex = item.value;
-      var body = this.getBody(index);
+      var body = this.getBody(bodyindex);
       var bodystats = {"idx":bodyindex, "p":body.position, "v":body.velocity};
       items.push(bodystats);
     }
@@ -485,7 +560,7 @@ class FightOEngine {
 
     var render = Matter.Render.create({
         element: document.body,
-        engine: engine,
+        engine: this.engine,
         options: renderOpts
     });
     
@@ -493,9 +568,11 @@ class FightOEngine {
   }
 }
 
-module.exports = {
-  Phyndex : Phyndex,
-  FightOEngine : FightOEngine
+if(isNode) {
+  module.exports = {
+    Phyndex : Phyndex,
+    FightOEngine : FightOEngine
+  }
 }
 
 function extend(base, sub) {

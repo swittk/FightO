@@ -8,26 +8,29 @@ const http = require('http');
 
 var sampleLevel = {
   "size" : {w:100,h:100},
+  
+  //sections divided by object's general type
   "floor" : [
-    {x:0,y:0,w:12,h:100,surf:"grass"},
-    {x:12,y:0,w:20,h:12,surf:"grass"},
-    {x:32,y:0,w:12,h:100,surf:"grass"},
-    {x:12,y:18,w:20,h:12,surf:"grass"}
+    { bodyd:{type:"rectangle",x:0,y:0,w:12,h:100}, assetd: {surf:"grass"} },
+    { bodyd:{type:"rectangle",x:12,y:0,w:20,h:12}, assetd: {surf:"grass"} },
+    { bodyd:{type:"rectangle",x:32,y:0,w:12,h:100}, assetd: {surf:"grass"} },
+    { bodyd:{type:"rectangle",x:12,y:18,w:20,h:12}, assetd: {surf:"grass"} }
   ],
-  "walls" : [
-    {x:1,y:1,w:1,h:1,surf:"grass"},
-    {x:1,y:2,w:1,h:2,surf:"stone"},
-    {x:4,y:5,w:1,h:1,surf:"stone"},
-    {x:5,y:5,w:2,h:1,surf:"stone.break",breakable:true,breakenergy:3.5},
-    {x:7,y:5,w:1,h:2,surf:"stone"}
+  "wall" : [
+    { bodyd:{type:"rectangle",x:1,y:1,w:1,h:1}, assetd: {surf:"grass"} },
+    { bodyd:{type:"rectangle",x:1,y:2,w:1,h:2}, assetd: {surf:"stone"} },
+    { bodyd:{type:"rectangle",x:4,y:5,w:1,h:1, breakable:true, breakenergy:3.5}, assetd: {surf:"stone.break"} },
+    { bodyd:{type:"rectangle",x:5,y:5,w:2,h:1}, assetd: {surf:"stone"} }
+    { bodyd:{type:"rectangle",x:7,y:5,w:1,h:2}, assetd: {surf:"stone"} }
   ],
-  "entities" : [
+  "entity" : [
     {
       type : "pickup.boost", //Specifies most information to be loaded
       x: 50,
       y: 50,
       properties : {
         //properties that we want to override/add
+        timingFunction : "20 - t";
       }
     }
   ],
@@ -83,6 +86,7 @@ class GameState {
     this.dynamicBodies = {};
     
     this.map = map;
+    
   }
 }
 
