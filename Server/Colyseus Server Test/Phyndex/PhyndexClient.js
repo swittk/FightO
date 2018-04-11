@@ -113,17 +113,35 @@ var gyroargs = {
 	screenAdjusted:false			// ( If set to true it will return screen adjusted values. )
 };
 var gn = new GyroNorm();
+
+var gyrocaller;
+function gyroRealCaller(data) {
+  console.log(JSON.stringify(data));
+  accelX = data.dm.gx		//( devicemotion event accelerationIncludingGravity x value )
+  accelY = data.dm.gy		//( devicemotion event accelerationIncludingGravity y value )
+  //data.dm.gz		( devicemotion event accelerationIncludingGravity z value )
+}
+function gyroInitialCaller(data) {
+  if(data.dm.gx == 0 && data.dm.gy == 0) {
+    keyboardInput = true;
+  }
+  else {
+    gyrocaller = gyroRealCaller;
+  }
+}
+gyrocaller = gyroInitialCaller;
 gn.init(gyroargs).then(function(){
   gn.start(function(data){
-   accelX = data.dm.gx		//( devicemotion event accelerationIncludingGravity x value )
-   accelY = data.dm.gy		//( devicemotion event accelerationIncludingGravity y value )
-   //data.dm.gz		( devicemotion event accelerationIncludingGravity z value )
+    gyrocaller(data);
   });
 }).catch(function(e){
   // Catch if the DeviceOrientation or DeviceMotion is not supported by the browser or device
   console.log('no devicemotion present on device');
   console.log('should try keyboard input');
 });
+
+
+
 
 if(window.DeviceMotionEvent) {
   keyboardInput = false;
