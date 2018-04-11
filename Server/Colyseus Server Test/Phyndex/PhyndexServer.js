@@ -36,46 +36,10 @@ var sampleLevel = {
   ],
   "spawnpoints" : [
     {x:10, y:10},
-    {x:90, y:90},
-    {x:90, y:10},
-    {x:10, y:90}
+    {x:20, y:10},
+    {x:20, y:10},
+    {x:20, y:20}
   ]
-}
-
-var phyndexMap = {
-  "size" : {w:100,h:100},
-  "spawnpoints" : [
-    {x:10, y:10},
-    {x:90, y:90},
-    {x:90, y:10},
-    {x:10, y:90}
-  ],
-  "static" : {
-    "floor" : [
-      {x:0,y:0,w:12,h:100,surf:"grass"},
-      {x:12,y:0,w:20,h:12,surf:"grass"},
-      {x:32,y:0,w:12,h:100,surf:"grass"},
-      {x:12,y:18,w:20,h:12,surf:"grass"}
-    ],
-    "walls" : [
-      {x:1,y:1,w:1,h:1,surf:"grass"},
-      {x:1,y:2,w:1,h:2,surf:"stone"},
-      {x:4,y:5,w:1,h:1,surf:"stone"},
-      {x:5,y:5,w:2,h:1,surf:"stone.break",breakable:true,breakenergy:3.5},
-      {x:7,y:5,w:1,h:2,surf:"stone"}
-    ],
-    "spawners" : [
-    ],
-  },
-  "dynamic" : {
-    "floor" : [
-    ],
-    "walls" : [
-    ],
-    "spawners" : [
-    ],
-
-  }
 }
 
 
