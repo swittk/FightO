@@ -1,9 +1,17 @@
 <html>
 <body>
 <input type="text" id="nameInput" value=""></input>
-<button onclick="nameSet()">Set Name</button>
+<button id="buttonInput" onclick="nameSet()">Set Name</button>
 <p id="enternametostarttext">Connected : Enter Name To Start Game</p>
-
+<script>
+        var input = document.getElementById("nameInput");
+        input.addEventListener("keyup", function(event) {
+            event.preventDefault();
+            if (event.keyCode === 13) {
+                document.getElementById("buttonInput").click();
+            }
+        });
+        </script>
 </body>
 <script src="gyronorm.complete.min.js"></script>
 <script src="colyseus.js"></script>
