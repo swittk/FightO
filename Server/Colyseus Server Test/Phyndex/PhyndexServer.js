@@ -86,7 +86,10 @@ class FightOGame extends Room {
     
   // Checks if a new client is allowed to join. (default: `return true`)
   requestJoin (options/**any*/, isNew/**boolean*/) {
-    return true;
+    //TODO: do something more complicated
+    var dummyplayerobject = {};
+    if(this.fightEngine.playerCanJoin(dummyplayerobject)) return true;
+    return false;
   }
 
   // When client successfully join the room

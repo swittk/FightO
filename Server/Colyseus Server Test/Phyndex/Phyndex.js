@@ -24,7 +24,7 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 const mapUnitSize = 15;
-const playerDiameter = 0.8; //player diameter in units
+const playerDiameter = 2; //player diameter in units
 
 const forceScaling = 20.0;
 
@@ -320,6 +320,13 @@ class FightOEngine {
     return player;
   }
   
+  playerCanJoin(player) {
+    //TODO: insert custom behaviour here
+    if(this.players.length < this.map.spawnpoints.length) {
+      return true;
+    }
+  }
+    
   /**
     @param descriptor {Object} : Object descriptor
     @param index {Integer} Index to be used 

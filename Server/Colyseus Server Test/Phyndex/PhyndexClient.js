@@ -1,6 +1,6 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-var client = new Colyseus.Client('ws://localhost:4000')//new Colyseus.Client('wss://fighto.herokuapp.com');
+var client = /*new Colyseus.Client('ws://localhost:4000')*/new Colyseus.Client('wss://fighto.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
@@ -123,17 +123,23 @@ gn.init(gyroargs).then(function(){
   // Catch if the DeviceOrientation or DeviceMotion is not supported by the browser or device
   console.log('no devicemotion present on device');
   console.log('should try keyboard input');
-  keyboardInput = true;
 });
 
+if(window.DeviceMotionEvent) {
+  keyboardInput = false;
+}
+else {
+  keyboardInput = true;
+}
 window.addEventListener("keydown",
-  function(e){
-    keys[e.key] = true;
-  }, false);
+function(e){
+  keys[e.key] = true;
+}, false);
 window.addEventListener('keyup',
-  function(e){
-    keys[e.key] = false;
-  }, false);
+function(e){
+  keys[e.key] = false;
+}, false);
+
 
 
 var inputTimer = setInterval(function() {
@@ -143,8 +149,8 @@ var inputTimer = setInterval(function() {
     if(keys["ArrowUp"]) {ay += 1;}
     if(keys["ArrowLeft"]) {ax -= 1;}
     if(keys["ArrowRight"]) {ax += 1;}
+    accelX = ax; accelY = ay;
   }
-  accelX = ax; accelY = ay;
   client.sendInput(accelX, accelY);
 }, 30);
 
