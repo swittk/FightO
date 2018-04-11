@@ -125,12 +125,14 @@ function gyroRealCaller(data) {
 function gyroInitialCaller(data) {
   if(data.dm.gx == 0 && data.dm.gy == 0) {
     keyboardInput = true;
+    gyrocaller = function(){};
   }
   else {
     gyrocaller = gyroRealCaller;
   }
 }
 gyrocaller = gyroInitialCaller;
+
 gn.init(gyroargs).then(function(){
   gn.start(function(data){
     gyrocaller(data);
