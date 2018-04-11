@@ -20,7 +20,7 @@ var sampleLevel = {
     { bodyd:{type:"rectangle",x:1,y:1,w:1,h:1}, assetd: {surf:"grass"} },
     { bodyd:{type:"rectangle",x:1,y:2,w:1,h:2}, assetd: {surf:"stone"} },
     { bodyd:{type:"rectangle",x:4,y:5,w:1,h:1, breakable:true, breakenergy:3.5}, assetd: {surf:"stone.break"} },
-    { bodyd:{type:"rectangle",x:5,y:5,w:2,h:1}, assetd: {surf:"stone"} }
+    { bodyd:{type:"rectangle",x:5,y:5,w:2,h:1}, assetd: {surf:"stone"} },
     { bodyd:{type:"rectangle",x:7,y:5,w:1,h:2}, assetd: {surf:"stone"} }
   ],
   "entity" : [
@@ -30,7 +30,7 @@ var sampleLevel = {
       y: 50,
       properties : {
         //properties that we want to override/add
-        timingFunction : "20 - t";
+        timingFunction : "20 - t"
       }
     }
   ],
@@ -81,12 +81,8 @@ var phyndexMap = {
 
 
 class GameState {
-  constructor(map) {
-    this.playerid = [];
-    this.dynamicBodies = {};
-    
-    this.map = map;
-    
+  constructor(objectStateObject) {    
+    this.objectState = objectStateObject;
   }
 }
 
@@ -117,7 +113,7 @@ class FightOGame extends Room {
       self.sendActiveUpdateMessage();
     }, 50);
     
-    this.setState(new GameState(options.map));
+    this.setState(new GameState(this.fightEngine.stateObject));
   }
   
   loadMap(map) {
@@ -157,8 +153,8 @@ class FightOGame extends Room {
     }
     if(data.type == 'accel') {
       client.player.lastAccel.x = data.x;
-      client.player.lastAccel.x = data.y;
-      //console.log('received accel'+this.aX+this.aY);
+      client.player.lastAccel.y = data.y;
+      console.log('received accel'+client.player.lastAccel.x +client.player.lastAccel.y);
     }
   }
 
@@ -181,7 +177,7 @@ class FightOGame extends Room {
 
 const httpServer = http.createServer();
 var fightoServer = new Server();
-fightoServer.register("sample", FightOGame, {map:phyndexMap});
+fightoServer.register("sample", FightOGame, {map:sampleLevel});
 
 fightoServer.attach({ server: httpServer });
 fightoServer.listen(4000)

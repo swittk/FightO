@@ -29,16 +29,37 @@ class FightOJSClient {
       self.fightEngine.createRenderTarget();
     });
     this.room.onUpdate.add(function(state) {
-      if(!self.loadedMap) {
-        self.fightEngine.loadMap(state.map);
-        self.loadedMap = true;
+      if(!self.loadedObjectState) {
+        self.loadInitialObjectState(state.objectState);
+        self.loadedObjectState = true;
         console.log("map is "+JSON.stringify(state));
+        self.startListeningToNewChanges();
       }
     });
-    
+//     self.startListeningToNewChanges();
     this.room.onData.add(function(message) {
       self.onData(message);
     });
+    
+  }
+  
+  startListeningToNewChanges() {
+    var self = this;
+    this.room.listen("objectState/:number", function(change){
+      console.log("Operation :"+change.operation); // => "replace" (can be "add", "remove" or "replace")
+      console.log("ID was "+change.path["number"]);
+      //console.log(change.path["attribute"]); // => "y"
+      console.log("value was"+JSON.stringify(change.value)); // => 1
+      switch(change.operation) {
+        case "add" : {
+          //this.object;
+          self.addObject(change.value, change.path["number"]);
+        } break;
+        case "remove" : {
+          self.removeObject(change.path["number"]);
+        } break;
+      }
+    })
   }
   
   onData(message) {
@@ -53,6 +74,7 @@ class FightOJSClient {
           var id = item.idx;
           this.fightEngine.setPosition(id, item.p.x, item.p.y);
           this.fightEngine.setVelocity(id, item.v.x, item.v.y);
+          console.log("set position of object");
         }
       } break;
     }
@@ -64,6 +86,13 @@ class FightOJSClient {
   
   setClientName(name, now) {
     this.room.send({type:"nameset", name : name, ts : now});
+  }
+  
+  loadInitialObjectState(objectState) {
+    this.fightEngine.loadStateFromStateObject(objectState);
+  }
+  addObject(object) {
+    this.fightEngine.setObject(object, object.id);
   }
 }
 
@@ -95,15 +124,17 @@ gn.init(gyroargs).then(function(){
   console.log('no devicemotion present on device');
   console.log('should try keyboard input');
   keyboardInput = true;
-  window.addEventListener("keydown",
-    function(e){
-      keys[e.key] = true;
-    }, false);
-  window.addEventListener('keyup',
-    function(e){
-      keys[e.key] = false;
-    }, false);
 });
+
+window.addEventListener("keydown",
+  function(e){
+    keys[e.key] = true;
+  }, false);
+window.addEventListener('keyup',
+  function(e){
+    keys[e.key] = false;
+  }, false);
+
 
 var inputTimer = setInterval(function() {
   var ax = 0; var ay = 0;

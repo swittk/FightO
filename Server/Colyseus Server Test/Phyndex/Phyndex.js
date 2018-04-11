@@ -23,9 +23,13 @@ if (typeof module !== 'undefined' && module.exports) {
         root._ = _;
 }
 
-
-const playerDiameter = 10;
 const mapUnitSize = 15;
+const playerDiameter = 0.8; //player diameter in units
+
+const forceScaling = 20.0;
+
+const MessageType_ActiveUpdateMessage = "AUM";
+
 
 if ( typeof Matter !== 'undefined' && Matter )
 {
@@ -44,32 +48,20 @@ function FightOMessage(type, payload) {
 }
 
 function ActiveUpdateMessage(items) {
-  FightOMessage.call(this, "AUM", items);
+  FightOMessage.call(this, MessageType_ActiveUpdateMessage, items);
 }
 extend(FightOMessage, ActiveUpdateMessage);
 
 
-class FightOGameObject {
-  constructor(bodyd, assetd) {
+class GameObjectDesc {
+  constructor(bodyd, assetd, active) {
     this.bodyd = bodyd;
     this.assetd = assetd;
+    this.active = active;
+    this.position = {x : this.bodyd.x, y : this.bodyd.y };
   }
 }
 
-class FightOGameState {
-  constructor() {
-    this.staticObjects = {};
-    this.currentStaticIndex = 0;
-    
-    this.dynamicObjects = {};
-    this.currentDynamicIndex = 0;
-  }
-  
-  addStaticGameObject(id, bodyd, assetd, isActive) {
-    
-  }
-  
-}
 
 class Phyndex {
   constructor(engine) {
@@ -129,6 +121,7 @@ class Phyndex {
     Matter.World.add(this.engine.world, body);
     body.index = index;
     this.indices[index] = body;
+    //console.log("added body "+JSON.stringify(body)+" to index "+index);
     return index;
   }
   
@@ -173,14 +166,14 @@ class FightOPlayer {
   
   - Call step(dt) to step the physics engine by the specified amount of time
   - Use indexes to manage physics bodies
-    - CreateRetrieveUpdateDelete : addBody, getBody, setBody, removeBody
+    - Retrieve(Create/Update)Delete : getBody, setBody, removeBody
     - findBody to get index as needed.
   - createBodyWithDescriptor(descriptor, _index)
     - Creates AND adds body with descriptor to the world
     ** Implement all map body descriptor parsing here
   
   - Convenience methods to set & get body properties by index
-    - Setters
+    - Setters *** These functions are only able to be called once object is set as active!
       - setPosition(index, x, y)
       - setVelocity(index, x, y)
       - setAngle(index, a)
@@ -203,12 +196,19 @@ class FightOPlayer {
     - addPlayerWithName(name) -- As the name says
   
   - Communication
-    - addActive(index), removeActive(index) : Adds and removes indices of objects to be tracked
+    - setObjectAsActive(index), setObjectAsInactive(index) : Adds and removes indices of objects to be tracked
     - getActiveIndices() : Returns the currently tracked active indices.
     - createActiveUpdateMessage()
       - Creates an "active update message"; all the states of the bodies with indices added
       as "active"
     
+    - "State Object" : stateObject -- A property of the engine
+      - Contains a list of objects in the game
+      - Used as "objectState" of the colyseus game room's state.
+      
+      - In order to load stateObject initially (useful mostly on the client side, 
+      when starting, in order to populate the map)...
+        Call this function --> loadStateFromStateObject(stateObject);
   
   - Debug/Display
     - createRenderTarget()
@@ -239,17 +239,32 @@ class FightOEngine {
     this.phyndex.step(dt);
   }
   
-  setPosition(index, x, y) { 
-    var body = this.getBody(index);
-    console.log("body is "+body+", id is "+index);
-    Matter.Body.setPosition(body, Matter.Vector.create(x, y));
+  getBodyIfObjectIsActive(index) {
+    var object = this.stateObject[index];
+    if(!object) {console.log("no object"); return undefined;}
+    if(!object.active) {console.log("cannot set value to inactive object"); return undefined;}
+    return this.getBody(index);
   }
   
-  setVelocity(index, x, y) { Matter.Body.setVelocity(this.getBody(index), Matter.Vector.create(x, y)); }
+  setPosition(index, x, y) {
+    var body = this.getBodyIfObjectIsActive(index); if(!body) return false; Matter.Body.setPosition(body, Matter.Vector.create(x, y));
+    return true;
+  }
   
-  setAngle(index, a) { Matter.Body.setAngle(this.getBody(index), a); }
+  setVelocity(index, x, y) {
+    var body = this.getBodyIfObjectIsActive(index); if(!body) return false; Matter.Body.setVelocity(body, Matter.Vector.create(x, y));
+    return true;
+  }
   
-  setAngularVelocity(index, w) { Matter.Body.setAngularVelocity(this.getBody(index), w); }
+  setAngle(index, a) {
+    var body = this.getBodyIfObjectIsActive(index); if(!body) return false; Matter.Body.setAngle(body, a);
+    return true;
+  }
+  
+  setAngularVelocity(index, w) {
+    var body = this.getBodyIfObjectIsActive(index); if(!body) return false; Matter.Body.setAngularVelocity(body, w);
+    return true;
+  }
   
   getPosition(index) {return this.getBody(index).position;}
   getVelocity(index) {return this.getBody(index).velocity;}
@@ -279,28 +294,37 @@ class FightOEngine {
         playerbody.floorCount -= otherbody.floorIncrement;
       }
     }
-    var body = Matter.Bodies.circle(x, y, r, {
-      typeLabel:"player",
-      floorCount : 0,
-      collisionStartCallback:startcallback,
-      collisionEndCallback:endcallback
-    });
-    var bodyIndex = this.addBody(body);
+    
+    var playerCreationDesc = {
+      bodyd : {
+        type:"circle", x:x, y:y, r:r,
+        options: {
+          typeLabel:"player",
+          floorCount : 0,
+          restitution: 0.6,
+          collisionStartCallback:startcallback,
+          collisionEndCallback:endcallback
+        }
+      },
+      assetd : {
+        type : "playerBall"
+      },
+      active : true
+    };
+    
+    var bodyIndex = this.addObject(playerCreationDesc);
     var player = new FightOPlayer(name, bodyIndex);
-    console.log("created player");    
+    console.log("created player");
     this.players.push(player);
     console.log("pushed player");
-    
-    this.addActive(bodyIndex);
-    
     return player;
   }
   
   /**
     @param descriptor {Object} : Object descriptor
-    @param _index {Integer} (Optional) If used, will replace object which has index 
+    @param index {Integer} Index to be used 
   */
-  createBodyWithDescriptor(descriptor, _index) {
+  createBodyWithDescriptor(descriptor, index) {
     var body;
     
     var options = descriptor.options;
@@ -316,9 +340,11 @@ class FightOEngine {
         );
       } break;
       case "rectangle" : {
+        var ox = descriptor.x + descriptor.w/2;
+        var oy = descriptor.y + descriptor.h/2;
         body = Matter.Bodies.rectangle(
-          descriptor.x * mapUnitSize,
-          descriptor.y * mapUnitSize,
+          ox * mapUnitSize,
+          oy * mapUnitSize,
           descriptor.w * mapUnitSize,
           descriptor.h * mapUnitSize,
           options
@@ -328,8 +354,8 @@ class FightOEngine {
       default : break;
     }
     
-    //The index of this body, obtained after calling addBody
-    var index = this.addBody(body, _index);
+    //setBody used to set body's index...
+    this.setBody(body, index);
     
     // Add collision callbacks here
     // The reason for this is because in case we want to add/remove/replace bodies, 
@@ -348,24 +374,64 @@ class FightOEngine {
         }
       };
     }
-    
     //Return the index
     return index;
   }
   
-  addObject(object, isActive) {
+  addObject(object) {
+    //create
     this.stateObjectIndex++;
-    this.stateObject[this.stateObjectIndex] = {object:object, isActive:isActive};
-    this.addBody(object.bodyd, this.stateObjectIndex);
+    var index = this.stateObjectIndex;
+    this.stateObject[index] = object;
+    object.id = index;
+    this.createBodyWithDescriptor(object.bodyd, index);
+    if(object.active) {
+      this.setObjectAsActive(index, true);
+    }
+    return index;
+  }
+  setObject(object, index) {
+    //update
+    object.id = index;
+    this.stateObject[index] = object;
+    this.createBodyWithDescriptor(object.bodyd, index);
+    if(object.active) {
+      this.setObjectAsActive(index, true);
+    }
+  }
+  retrieveObject(index) {
+    return this.stateObject[index];
   }
   
-  setObject(index, object, isActive) {
-    this.stateObject[index] = {object:object, isActive:isActive};
-    this.addBody(object.bodyd, index);
+  setObjectAsActive(index) {
+    var obj = this.stateObject[index];
+    if(obj) {
+      obj.active = true; 
+      this.activeIndices.set(index, true);
+      return true;
+    }
+    return false;
+  }
+  setObjectAsInactive(index) {
+    var obj = this.stateObject[index];
+    if(obj) {
+      obj.active = true; 
+      this.activeIndices.delete(index);
+      return true;
+    }
+    return false;
   }
   
-  getObject(index) {
-    
+  setObjectPosition(index, x, y) {
+    obj.position.x = x;
+    obj.position.y = y;
+  }
+  
+  removeObject(index) {
+    var obj = this.stateObject[index];
+    if(!obj) {return false;}
+    delete this.stateObject[index];
+    return true;
   }
   
   /**
@@ -375,6 +441,7 @@ class FightOEngine {
     @return {Integer} the index where the body was added
     */
   addBody(body, _index) {
+    console.log("WARNING : EXTREME BUG. DO NOT CALL ADDBODY ON SERVER")
     var index;
     if(_index !== undefined) {
       this.phyndex.set(_index, body);
@@ -383,7 +450,11 @@ class FightOEngine {
     else {
       index = this.phyndex.add(body);
     }
-    
+    return index;
+  }
+  
+  setBody(body, index) {
+    this.phyndex.set(index, body);
     return index;
   }
   
@@ -427,9 +498,17 @@ class FightOEngine {
       //console.log("Applying force");
       for(var i = 0; i < self.players.length; i++) {
         var player = self.players[i];
-        var force = Matter.Vector.create(player.lastAccel.x,-player.lastAccel.y);
+//         console.log("player is "+JSON.stringify(player));
+        var force = Matter.Vector.create(player.lastAccel.x*forceScaling,-player.lastAccel.y*forceScaling);
         var body = self.getBody(player.bodyId);
-        Matter.Body.applyForce(body, body.position, force);
+//         console.log("body is "+JSON.stringify(body));
+        console.log("force is " + JSON.stringify(force));
+        try {
+          Matter.Body.applyForce(body, body.position, force);
+        }
+        catch(error) {
+          console.log("can't apply force error "+error);
+        }
       }
     });
   }
@@ -474,13 +553,11 @@ class FightOEngine {
   
   loadMap(map) {
     this.map = map;
-    this.parseMapToStateObject(map);
-    this.loadMapComponent(map.static);
-    this.loadMapComponent(map.dynamic);
+    this.parseMapToStateObjectAndLoad(map);
     console.log("loaded Map");
   }
   
-  parseMapToStateObject(map) {
+  parseMapToStateObjectAndLoad(map) {
     for(var object of map.floor) {
       var bodyd = object.bodyd;
       
@@ -490,11 +567,12 @@ class FightOEngine {
         typeLabel : "floor",
         floorIncrement : ((object.floorIncrement !== undefined) ? object.floorIncrement : 1)
       };
+      bodyd.options = options;
       
       var assetd = object.assetd;
       
       var isActive = object.isActive ? true : false;
-      this.addObject(bodyd, assetd, isActive);
+      this.addObject(new GameObjectDesc(bodyd, assetd, isActive));
     }
     for(var object of map.wall) {
       var bodyd = object.bodyd;
@@ -503,20 +581,32 @@ class FightOEngine {
         isStatic : true,
         typeLabel : "wall"
       }
+      bodyd.options = options;
       var isActive = object.isActive ? true : false;
-      this.addObject(bodyd, assetd, isActive);
+      this.addObject(new GameObjectDesc(bodyd, assetd, isActive));
+    }
+  }
+  
+  //useful for client side
+  loadStateFromStateObject(stateObject) {
+    for(var id in stateObject) {
+      var object = stateObject[id];
+      this.addObject(object);
     }
   }
   
   addActive(index) {
+    console.log("addActive not supposed to be call")
     this.activeIndices.set(index, true);
   }
   removeActive(index) {
+    console.log("removeActive not supposed to be call")
     this.activeIndices.delete(index);
   }
   getActiveIndices() {
     return Array.from(this.activeIndices.keys());
   }
+    
   createActiveUpdateMessage() {    
     var items = [];
     var iterator = this.activeIndices.keys();
