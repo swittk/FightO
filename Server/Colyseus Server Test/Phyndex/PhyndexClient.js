@@ -8,6 +8,7 @@ function nameSet() {
   client.setClientName(name, now);
   removeById("enternametostarttext");
   removeById("nameInput");
+  removeById("buttonInput");
 }
 function removeById(id) {
   var element = document.getElementById(id);
@@ -139,16 +140,13 @@ gn.init(gyroargs).then(function(){
   console.log('no devicemotion present on device');
   console.log('should try keyboard input');
 });
-
-
-
-
 if(window.DeviceMotionEvent) {
   keyboardInput = false;
 }
 else {
   keyboardInput = true;
 }
+
 window.addEventListener("keydown",
 function(e){
   keys[e.key] = true;
@@ -159,7 +157,7 @@ function(e){
 }, false);
 
 
-
+keyboardInput = true
 var inputTimer = setInterval(function() {
   var ax = 0; var ay = 0;
   if(keyboardInput) {
