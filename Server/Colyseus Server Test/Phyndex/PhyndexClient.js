@@ -121,14 +121,17 @@ function gyroRealCaller(data) {
   accelX = data.dm.gx		//( devicemotion event accelerationIncludingGravity x value )
   accelY = data.dm.gy		//( devicemotion event accelerationIncludingGravity y value )
   //data.dm.gz		( devicemotion event accelerationIncludingGravity z value )
+  logGyro(accelX, accelY);
 }
 function gyroInitialCaller(data) {
   if(data.dm.gx == 0 && data.dm.gy == 0) {
     keyboardInput = true;
     gyrocaller = function(){};
+    logOutput("gyroInitial got 0,0; setting gyrocaller to stupid blank")
   }
   else {
     gyrocaller = gyroRealCaller;
+    logOutput("gyroRealCaller is set..")
   }
 }
 gyrocaller = gyroInitialCaller;
@@ -144,9 +147,11 @@ gn.init(gyroargs).then(function(){
 });
 if(window.DeviceMotionEvent) {
   keyboardInput = false;
+  logOutput("using device motion; keyboardInput = false;")
 }
 else {
   keyboardInput = true;
+  logOutput("not using device motion; keyboardInput = true;")
 }
 
 window.addEventListener("keydown",
@@ -159,7 +164,6 @@ function(e){
 }, false);
 
 
-keyboardInput = true
 var inputTimer = setInterval(function() {
   var ax = 0; var ay = 0;
   if(keyboardInput) {
@@ -170,5 +174,17 @@ var inputTimer = setInterval(function() {
     accelX = ax; accelY = ay;
   }
   client.sendInput(accelX, accelY);
+  logGyro(accelX, accelY);
 }, 30);
 
+function logOutput(message) {
+  var output = document.getElementById("messagedisplay");
+  output.innerHTML = output.innerHTML + message;
+}
+
+function logGyro(x, y) {
+  var output = document.getElementById("accelDisplay");
+  output.innerHTML = "accel ("+x+","+y+")";
+}
+
+logOutput("console:")
