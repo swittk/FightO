@@ -115,7 +115,7 @@ class FightOGame extends Room {
         var player = this.fightEngine.addPlayerWithName(client.name);
         console.log("added player :"+JSON.stringify(player));
         client.player = player;
-        this.send (client,{type:'identify',bodyId:'client.player.bodyId'});
+        this.send (client,new FightOMessage('identify',client.player.bodyId));
       }
     }
     if(data.type == 'accel') {

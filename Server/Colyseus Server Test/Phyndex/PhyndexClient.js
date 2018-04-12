@@ -1,6 +1,6 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-var client = new Colyseus.Client('ws://localhost:4040')//new Colyseus.Client('wss://fighto.herokuapp.com');
+var client = /*new Colyseus.Client('ws://localhost:4040')*/new Colyseus.Client('wss://fighto.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
@@ -22,7 +22,7 @@ function removeById(id) {
 class FightOJSClient {
   constructor(roomname) {
     var self = this;
-    var buffer = [];
+    this.buffer = [];
     this.self_id = null;
     this.fightEngine = new FightOEngine();
     this.room = client.join(roomname);
@@ -34,7 +34,7 @@ class FightOJSClient {
     this.room.onUpdate.add(function(state) {
       if(!self.loadedObjectState) {
         self.loadInitialObjectState(state.objectState);
-        this.room.send({type:'init'});
+        self.room.send({type:'init'});
         self.loadedObjectState = true;
         console.log("map is "+JSON.stringify(state));
         self.startListeningToNewChanges();
@@ -45,6 +45,7 @@ class FightOJSClient {
       self.onData(message);
     });
     
+    this.setUpdateRate(30);
   }
   
   startListeningToNewChanges() {
@@ -70,10 +71,10 @@ class FightOJSClient {
     console.log(message);
     switch(message.type) {
       case "AUM" : {
-        buffer.push(message);
+        this.buffer.push(message);
       } break;
       case "identify" : {
-        this.self_id = message.bodyId;
+        this.self_id = message.payload;
       } break;
     }
   }
@@ -96,8 +97,11 @@ class FightOJSClient {
   setUpdateRate (hz) {
     this.update_rate = hz;
     clearInterval(this.update_interval);
+    var self = this;
     this.update_interval = setInterval (
-      function () {self.update();},
+      function () {
+        self.update();
+      },
       1000 / this.update_rate);
   }
 
@@ -110,36 +114,47 @@ class FightOJSClient {
     this.interpolateOthers();
     this.adjustrendering();
   }
+  processInputs () {}
+  interpolateOthers () {}
+  adjustrendering () {}
 
   processBuffer () {
-    while (buffer.length) {
+    while (this.buffer.length) {
       //active update message
-      var timestamp = buffer[0].timestamp;
-      var updatelist = buffer[0].payload;
-      buffer[0].splice(0,1);
+      var timestamp = this.buffer[0].timestamp;
+      var updatelist = this.buffer[0].payload;
+      this.buffer.splice(0,1);
+      console.log("BUFFER" + this.buffer);
+      var no_buffer = true;////////////////////////////////////////
       for (var item of updatelist) {
-        if (this.bodyId == item.idx) {
-          // Received true position of this body from server in the past
+        if (no_buffer) {
           this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
           this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
-          //Server Reconciliation. Re-apply all inputs not yet processed by server
-          var i = 0;
-          while (i < this.pending_inputs.length) {
-            var input = this.pending_inputs[i];
-            if (input.input_sequence_number <= state.last_processed_input) {
-              // Already processed. -> can safely drop pending inputs
-              this.pending_inputs.splice (i,1);
-            }
-            else {
-              // Not processed by server yet, Re-apply it.
-              applyingput(input);
-              i++;
-            }
-          }
         }
         else {
-          // Add for interpolation
-          position_buffer
+          if (this.bodyId == item.idx) {
+            // Received true position of this body from server in the past
+            this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
+            this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
+            //Server Reconciliation. Re-apply all inputs not yet processed by server
+            var i = 0;
+            while (i < this.pending_inputs.length) {
+              var input = this.pending_inputs[i];
+              if (input.input_sequence_number <= state.last_processed_input) {
+                // Already processed. -> can safely drop pending inputs
+                this.pending_inputs.splice (i,1);
+              }
+              else {
+                // Not processed by server yet, Re-apply it.
+                applyingput(input);
+                i++;
+              }
+            }
+          }
+          else {
+
+            // Add for interpolation
+          }
         }
       }
     }

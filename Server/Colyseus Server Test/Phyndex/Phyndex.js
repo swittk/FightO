@@ -668,7 +668,9 @@ class FightOEngine {
 if(isNode) {
   module.exports = {
     Phyndex : Phyndex,
-    FightOEngine : FightOEngine
+    FightOEngine : FightOEngine,
+    FightOMessage : FightOMessage,
+    ActiveUpdateMessage : ActiveUpdateMessage
   }
 }
 
