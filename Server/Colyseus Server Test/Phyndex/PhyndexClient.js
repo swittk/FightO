@@ -22,6 +22,8 @@ function removeById(id) {
 class FightOJSClient {
   constructor(roomname) {
     var self = this;
+    var buffer = [];
+    this.self_id = null;
     this.fightEngine = new FightOEngine();
     this.room = client.join(roomname);
     
@@ -32,6 +34,7 @@ class FightOJSClient {
     this.room.onUpdate.add(function(state) {
       if(!self.loadedObjectState) {
         self.loadInitialObjectState(state.objectState);
+        this.room.send({type:'init'});
         self.loadedObjectState = true;
         console.log("map is "+JSON.stringify(state));
         self.startListeningToNewChanges();
@@ -67,17 +70,10 @@ class FightOJSClient {
     console.log(message);
     switch(message.type) {
       case "AUM" : {
-        //active update message
-        var timestamp = message.timestamp;
-        var updatelist = message.payload;
-        
-        //TODO: Add lag compensation code around here; store these variables or such
-        for(var item of updatelist) {
-          var id = item.idx;
-          this.fightEngine.setPosition(id, item.p.x, item.p.y);
-          this.fightEngine.setVelocity(id, item.v.x, item.v.y);
-          console.log("set position of object");
-        }
+        buffer.push(message);
+      } break;
+      case "identify" : {
+        this.self_id = message.bodyId;
       } break;
     }
   }
@@ -96,6 +92,75 @@ class FightOJSClient {
   addObject(object) {
     this.fightEngine.setObject(object, object.id);
   }
+
+  setUpdateRate (hz) {
+    this.update_rate = hz;
+    clearInterval(this.update_interval);
+    this.update_interval = setInterval (
+      function () {self.update();},
+      1000 / this.update_rate);
+  }
+
+  update () {
+    this.processBuffer();
+    if (!this.self_id) {
+      return;
+    }
+    this.processInputs();
+    this.interpolateOthers();
+    this.adjustrendering();
+  }
+
+  processBuffer () {
+    while (buffer.length) {
+      //active update message
+      var timestamp = buffer[0].timestamp;
+      var updatelist = buffer[0].payload;
+      buffer[0].splice(0,1);
+      for (var item of updatelist) {
+        if (this.bodyId == item.idx) {
+          // Received true position of this body from server in the past
+          this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
+          this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
+          //Server Reconciliation. Re-apply all inputs not yet processed by server
+          var i = 0;
+          while (i < this.pending_inputs.length) {
+            var input = this.pending_inputs[i];
+            if (input.input_sequence_number <= state.last_processed_input) {
+              // Already processed. -> can safely drop pending inputs
+              this.pending_inputs.splice (i,1);
+            }
+            else {
+              // Not processed by server yet, Re-apply it.
+              applyingput(input);
+              i++;
+            }
+          }
+        }
+        else {
+          // Add for interpolation
+          position_buffer
+        }
+      }
+    }
+  }
+
+  /*
+  createActiveUpdateMessage() {    
+    var items = [];
+    var iterator = this.activeIndices.keys();
+    var item;
+    while (item = iterator.next(), !item.done) {
+      var bodyindex = item.value;
+      var body = this.getBody(bodyindex);
+      var bodystats = {"idx":bodyindex, "p":body.position, "v":body.velocity};
+      items.push(bodystats);
+    }
+    
+    return new ActiveUpdateMessage(items);
+  }
+  */
+
 }
 
 
@@ -170,6 +235,8 @@ var inputTimer = setInterval(function() {
     if(keys["ArrowRight"]) {ax += 1;}
     accelX = ax; accelY = ay;
   }
-  client.sendInput(accelX, accelY);
+
+
+client.sendInput(accelX, accelY);
 }, 30);
 
