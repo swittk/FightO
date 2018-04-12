@@ -73,8 +73,12 @@ class FightOJSClient {
       case "AUM" : {
         this.buffer.push(message);
       } break;
-      case "identify" : {
+      case "iden" : {
+        logOutput("IDENTIFY"+message.payload);
         this.self_id = message.payload;
+      } break;
+      default: {
+        logOutput("IDENTIFY"+message.type + " & " + message.payload);
       } break;
     }
   }
@@ -125,14 +129,15 @@ class FightOJSClient {
       var updatelist = this.buffer[0].payload;
       this.buffer.splice(0,1);
       console.log("BUFFER" + this.buffer);
-      var no_buffer = true;////////////////////////////////////////
+      var no_buffer = false;////////////////////////////////////////
       for (var item of updatelist) {
         if (no_buffer) {
           this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
           this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
         }
         else {
-          if (this.bodyId == item.idx) {
+          //logOutput("\n\n" + this.self_id + " item: " + item.idx);
+          if (this.self_id == item.idx) {
             // Received true position of this body from server in the past
             this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
             this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
@@ -152,8 +157,9 @@ class FightOJSClient {
             }
           }
           else {
-
             // Add for interpolation
+            var ts = +new Date();
+
           }
         }
       }
