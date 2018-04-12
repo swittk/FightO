@@ -1,6 +1,6 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-var client = /*new Colyseus.Client('ws://localhost:4000')*/new Colyseus.Client('wss://fighto.herokuapp.com');
+var client = new Colyseus.Client('ws://localhost:4040')//new Colyseus.Client('wss://fighto.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
@@ -64,6 +64,7 @@ class FightOJSClient {
   }
   
   onData(message) {
+    console.log(message);
     switch(message.type) {
       case "AUM" : {
         //active update message

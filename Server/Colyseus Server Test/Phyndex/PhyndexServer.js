@@ -147,4 +147,4 @@ var fightoServer = new Server();
 fightoServer.register("sample", FightOGame, {map:sampleLevel});
 
 fightoServer.attach({ server: httpServer });
-fightoServer.listen(4000)
+fightoServer.listen(4040)
