@@ -1,0 +1,27 @@
+{
+  "name": "FightOServer",
+  "version": "0.1.0",
+  "description": "Fight-O game server",
+  "engines": {
+    "node": "^9"
+  },
+  "main": "PhyndexServer.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "colyseus": "^0.8",
+    "matter-js": "^0.14.1",
+    "uws": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "fight",
+    "game",
+    "server"
+  ],
+  "license": "Switt's Software License"
+}

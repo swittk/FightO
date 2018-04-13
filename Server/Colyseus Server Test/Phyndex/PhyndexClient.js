@@ -1,6 +1,7 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-var client = new Colyseus.Client('ws://localhost:4000')//new Colyseus.Client('wss://fighto.herokuapp.com');
+//var client = new Colyseus.Client('ws://localhost:4040')
+var client = new Colyseus.Client('wss://fightochamp.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
@@ -70,13 +71,15 @@ class FightOJSClient {
   onData(message) {
     console.log(message);
     switch(message.type) {
-      case "AUM" : {
+      case "AUM" : 
         this.buffer.push(message);
-      } break;
-      case "identify" : {
-        console.log("identification received");
+        break;
+      case "identify" : 
         this.self_id = message.payload;
-      } break;
+        break;
+      default: 
+        logOutput("IDENTIFY"+message.type + " & " + message.payload);
+        break;
     }
   }
   
@@ -126,14 +129,14 @@ class FightOJSClient {
       var updatelist = this.buffer[0].payload;
       this.buffer.splice(0,1);
       console.log("BUFFER" + this.buffer);
-      var no_buffer = true;////////////////////////////////////////
+      var no_buffer = false;////////////////////////////////////////
       for (var item of updatelist) {
         if (no_buffer) {
           this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
           this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
         }
         else {
-          if (this.bodyId == item.idx) {
+          if ((this.self_id == item.idx)) {
             // Received true position of this body from server in the past
             this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
             this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
@@ -153,8 +156,9 @@ class FightOJSClient {
             }
           }
           else {
-
             // Add for interpolation
+            var ts = +new Date();
+            
           }
         }
       }
@@ -261,7 +265,7 @@ var inputTimer = setInterval(function() {
 
 function logOutput(message) {
   var output = document.getElementById("messagedisplay");
-  output.innerHTML = output.innerHTML + message;
+  output.innerHTML = output.innerHTML + message + "<br>";
 }
 
 function logGyro(x, y) {

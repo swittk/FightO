@@ -690,3 +690,222 @@ function extend(base, sub) {
     value: sub 
   });
 }
+
+
+class LinkedList { // Timeline Doubly Linked List
+  constructor () {
+    this._head = null;
+    this._tail = null;
+    this._length = 0;
+  }
+
+  nodeCreate (ts,val) {
+      var temp = {};
+      temp.ts = Number(ts); // to eliminate WTF events like javascript thinking that "ts" is string, so ("5" > "15") is "true" => wasted 6 hrs finding this bug.
+      temp.data = val;
+      temp.prev = null;
+      temp.next = null;
+      return temp;
+  }
+
+  findBound (ts) { // return maximum Node which (node.ts <= ts) // return null if no such node
+    var iterator = this._head;
+    while (iterator!==null) {
+      if (ts < iterator.ts)
+          return null; // as first node is (ts < iterator.ts), return null
+      if (iterator.next===null)
+        return iterator; // return this.tail -> maximum in this list, not yet (node.ts > ts)
+      if (ts < iterator.next.ts)
+        return iterator; // return the correct node since next node is (node.ts > ts)
+      iterator = iterator.next;
+    }
+    return null; // no node avaliable, return null
+  }
+  addAtFront (ts, val) {
+      var temp = this.nodeCreate(ts, val);
+      if (this._head === null) { //This is first node
+          this._head = temp;
+          this._tail = temp;
+      } else {
+          if (this._head.ts==ts) {
+              this._head.data = val;
+              return;
+          }
+          temp.next = this._head;
+          this._head.prev = temp;
+          this._head = temp;
+      }
+      this._length++;
+  }
+  addAtBack (ts, val) {
+      var temp = this.nodeCreate(ts, val);
+      if (this._tail === null) { //This is first node
+          this._tail = temp;
+          this._head = temp;
+      } else {
+          if (this._tail.ts==ts) {
+              this._tail.data = val;
+              return;
+          }
+          temp.prev = this._tail;
+          this._tail.next = temp;
+          this._tail = temp;
+      }
+      this._length++;
+  }
+  addValue (ts,val) { // add new node at/just after ts
+      var insert = this.findBound(ts);
+      if (insert===null) 
+          this.addAtFront(ts,val); // add new node at front
+      else if (insert===this._tail)
+          this.addAtBack(ts,val); // add new node at back
+      else if (insert.ts===ts) {
+          insert.data = val; // found same ts => replace data
+      } else {
+          var temp = this.nodeCreate(ts, val);
+          temp.prev = insert; // add new node inbetween
+          temp.next = insert.next;
+          temp.prev.next = temp;
+          temp.next.prev = temp;
+          this._length++;
+      }
+  }
+  removeAtFront () { // no use yet
+    var toReturn = null;
+    if (this._head) {
+      toReturn = this._head.data;
+      if (this.tail===this._head) {
+        this._head = null;
+        this.tail = null;
+      } else {
+        this._head = this._head.next;
+        this._head.prev = null;
+      }
+    }
+    this._length--;
+    return toReturn;
+  }
+  removeAtBack () { // no use yet
+    var toReturn = null;
+    if (this._tail) {
+      toReturn = this._tail.data;
+      if (this.head===this._tail) {
+        this._head = null;
+        this._tail = null;
+      } else {
+        this._tail = this._tail.prev;
+        this._tail.next = null;
+      }
+    }
+    this._length--;
+    return toReturn;
+  }
+
+  removeUntil (ts) { // remove unused node (until >= ts) for sake of freeing memory
+      var target = this.findBound(ts);
+      if (target===null)
+          return; //mission complete
+      if (target===this._head)
+          return; //mission complete
+      var iterator = target.prev;
+      while (iterator!=this._head) {
+          iterator = iterator.prev; // move to prev
+          iterator.next.prev = null; // begin deconstruction at iterator.next node
+          iterator.next.next = null;
+          iterator.next.ts = null;
+          iterator.next.data = null;
+          iterator.next = null;
+          this._length--;
+      }
+      this._head = target; // move head to target
+      iterator.next = null; //begin deconstruction at iterator node
+      iterator.ts = null;
+      iterator.data = null;
+      iterator.prev = null;
+      iterator = null; // mission complete
+      this._length--;
+  }
+
+  getValue (ts) { // get data (Object) that is ts maximally <=ts
+      var find = this.findBound(ts);
+      if (!find)
+          return null;
+      return find.data;
+  }
+
+  size () {
+      return this._length;
+  }
+
+  print () {//test printing
+      var iterator = this._head;
+      var i=0;
+      console.log(this._head)
+      console.log(this._tail);
+      console.log("LENGTH: " + this._length);
+      while (iterator!==null) {
+          console.log ("No." + (++i));
+          console.log(iterator);
+          if (iterator.next === null)
+          break;
+          iterator = iterator.next;
+      }
+  }
+}
+
+
+class Timeline { // not done yet
+  constructor (engine) {
+    this.engine = engine;
+    this.subscriber = [];
+
+    // worldline is timeline doubly linked lists consist of object... which
+    //   - each index [1,2,3,4] of
+    //     - each property {a:,p:,v:} of
+    //       - each value {x:,y:}
+    this.worldline = new LinkedList();
+
+    this.com_dom = 20; //common denominator = 20 ms
+  }
+
+  clock_now () {
+    return engine.timestamp;
+  }
+
+  // OTL = other timeline
+  subscribe (OTL) {
+    OTL.subscriber.push(this);
+  }
+
+  // rel_time = relative time from now(0)
+  // type = a: "acceleration", v: "velocity", p:"position"
+  // idx = index
+
+  // get data
+  // type is 'p','v','a'
+  // return {x:,y:}
+  get (rel_time, idx, type) {
+    let abs_time = this.clock_now() + rel_time;
+    abs_time = this.com_dom * Math.round(abs_time/this.com_dom) // round to nearest common denominator
+    get_value = database[abs_time][idx][type];
+    if (!get_value)
+    {
+
+    }
+    return database[abs_time][idx][type];
+  }
+
+  // set data
+  // data come in {p:{x:,y:},v:{x:,y:},a{x:,y:}}
+  set (rel_time, idx, data) {
+    let abs_time = this.clock_now() + rel_time;
+    abs_time = this.com_dom * Math.round(abs_time/this.com_dom) // round to nearest common denominator
+    worldline[abs_time][idx] = data;
+  }
+
+  // each come in {x:,y:}
+  // return data object
+  create_data (pos, vel, acc) {
+    return {p:pos,v:vel,a:acc};
+  }
+}
