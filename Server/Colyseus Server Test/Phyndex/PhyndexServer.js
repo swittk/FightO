@@ -2,7 +2,7 @@ const { Room, Server } = require('colyseus');
 
 const Matter = require('matter-js');
 
-const {Phyndex, FightOEngine} = require('./Phyndex.js');
+const {Phyndex, FightOEngine, FightOMessage} = require('./Phyndex.js');
 
 const http = require('http');
 
@@ -117,6 +117,7 @@ class FightOGame extends Room {
         client.player = player;
         this.send (client,new FightOMessage('identify',client.player.bodyId));
       }
+      return;
     }
     if(data.type == 'accel') {
       client.player.lastAccel.x = data.x;
@@ -147,4 +148,5 @@ var fightoServer = new Server();
 fightoServer.register("sample", FightOGame, {map:sampleLevel});
 
 fightoServer.attach({ server: httpServer });
-fightoServer.listen(4040)
+var PORT = process.env.PORT ? process.env.PORT : 4000;
+fightoServer.listen(PORT);

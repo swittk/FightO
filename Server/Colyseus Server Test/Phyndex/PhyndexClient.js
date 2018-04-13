@@ -75,7 +75,6 @@ class FightOJSClient {
         this.buffer.push(message);
         break;
       case "identify" : 
-        logOutput("IDENTIFY"+message.payload);
         this.self_id = message.payload;
         break;
       default: 
