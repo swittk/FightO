@@ -1,6 +1,6 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-var client = /*new Colyseus.Client('ws://localhost:4040')*/new Colyseus.Client('wss://fighto.herokuapp.com');
+var client = /*new Colyseus.Client('ws://localhost:4040')*/new Colyseus.Client('wss://fightochamp.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
@@ -70,16 +70,16 @@ class FightOJSClient {
   onData(message) {
     console.log(message);
     switch(message.type) {
-      case "AUM" : {
+      case "AUM" : 
         this.buffer.push(message);
-      } break;
-      case "iden" : {
+        break;
+      case "iden" : 
         logOutput("IDENTIFY"+message.payload);
         this.self_id = message.payload;
-      } break;
-      default: {
+        break;
+      default: 
         logOutput("IDENTIFY"+message.type + " & " + message.payload);
-      } break;
+        break;
     }
   }
   
@@ -137,7 +137,7 @@ class FightOJSClient {
         }
         else {
           //logOutput("\n\n" + this.self_id + " item: " + item.idx);
-          if (this.self_id == item.idx) {
+          if ((this.self_id == item.idx) || (true)) {
             // Received true position of this body from server in the past
             this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
             this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
@@ -159,7 +159,7 @@ class FightOJSClient {
           else {
             // Add for interpolation
             var ts = +new Date();
-
+            
           }
         }
       }
