@@ -1,6 +1,7 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-var client = /*new Colyseus.Client('ws://localhost:4040')*/new Colyseus.Client('wss://fightochamp.herokuapp.com');
+//var client = new Colyseus.Client('ws://localhost:4040')
+var client = new Colyseus.Client('wss://fightochamp.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
@@ -73,7 +74,7 @@ class FightOJSClient {
       case "AUM" : 
         this.buffer.push(message);
         break;
-      case "iden" : 
+      case "identify" : 
         logOutput("IDENTIFY"+message.payload);
         this.self_id = message.payload;
         break;
@@ -136,8 +137,7 @@ class FightOJSClient {
           this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
         }
         else {
-          //logOutput("\n\n" + this.self_id + " item: " + item.idx);
-          if ((this.self_id == item.idx) || (true)) {
+          if ((this.self_id == item.idx)) {
             // Received true position of this body from server in the past
             this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
             this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
@@ -266,7 +266,7 @@ var inputTimer = setInterval(function() {
 
 function logOutput(message) {
   var output = document.getElementById("messagedisplay");
-  output.innerHTML = output.innerHTML + message;
+  output.innerHTML = output.innerHTML + message + "<br>";
 }
 
 function logGyro(x, y) {
