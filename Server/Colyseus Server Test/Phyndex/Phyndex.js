@@ -691,14 +691,25 @@ function extend(base, sub) {
   });
 }
 
-
+    //    Doubly linkedlist for timeline
+    //    methods:
+    //    1. addValue (ts,val) //add obj(val) at timeline(ts) - [should round down to common denominator first to make it faster]
+    //          ts: timestamp (absolute milisecond)
+    //          val: object... which
+    //                  - each index [1,2,3,4] of
+    //                    - each property {a:,p:,v:} of
+    //                      - each value {x:,y:}
+    //    2. getValue (ts) // get obj(val) at timeline(ts) - [If no obj at ts, return obj at latest time avaliable that less than ts; If no such obj return null]
+    //    3. removeUntil (ts) // set target at obj which maximally less or equal than ts; then remove data from timeline since start until before that obj without delete that obj
+    //             - intended to clearing the memories since older version of state is no use
+    //    4. size () // return number of nodes in linklist
+    //    5. print () // print linklist to console log
 class LinkedList { // Timeline Doubly Linked List
   constructor () {
     this._head = null;
     this._tail = null;
     this._length = 0;
   }
-
   nodeCreate (ts,val) {
       var temp = {};
       temp.ts = Number(ts); // to eliminate WTF events like javascript thinking that "ts" is string, so ("5" > "15") is "true" => wasted 6 hrs finding this bug.
@@ -707,7 +718,6 @@ class LinkedList { // Timeline Doubly Linked List
       temp.next = null;
       return temp;
   }
-
   findBound (ts) { // return maximum Node which (node.ts <= ts) // return null if no such node
     var iterator = this._head;
     while (iterator!==null) {
@@ -753,23 +763,6 @@ class LinkedList { // Timeline Doubly Linked List
       }
       this._length++;
   }
-  addValue (ts,val) { // add new node at/just after ts
-      var insert = this.findBound(ts);
-      if (insert===null) 
-          this.addAtFront(ts,val); // add new node at front
-      else if (insert===this._tail)
-          this.addAtBack(ts,val); // add new node at back
-      else if (insert.ts===ts) {
-          insert.data = val; // found same ts => replace data
-      } else {
-          var temp = this.nodeCreate(ts, val);
-          temp.prev = insert; // add new node inbetween
-          temp.next = insert.next;
-          temp.prev.next = temp;
-          temp.next.prev = temp;
-          this._length++;
-      }
-  }
   removeAtFront () { // no use yet
     var toReturn = null;
     if (this._head) {
@@ -800,7 +793,23 @@ class LinkedList { // Timeline Doubly Linked List
     this._length--;
     return toReturn;
   }
-
+  addValue (ts,val) { // add new node at/just after ts
+    var insert = this.findBound(ts);
+    if (insert===null) 
+        this.addAtFront(ts,val); // add new node at front
+    else if (insert===this._tail)
+        this.addAtBack(ts,val); // add new node at back
+    else if (insert.ts===ts) {
+        insert.data = val; // found same ts => replace data
+    } else {
+        var temp = this.nodeCreate(ts, val);
+        temp.prev = insert; // add new node inbetween
+        temp.next = insert.next;
+        temp.prev.next = temp;
+        temp.next.prev = temp;
+        this._length++;
+    }
+  }
   removeUntil (ts) { // remove unused node (until >= ts) for sake of freeing memory
       var target = this.findBound(ts);
       if (target===null)
@@ -825,18 +834,15 @@ class LinkedList { // Timeline Doubly Linked List
       iterator = null; // mission complete
       this._length--;
   }
-
   getValue (ts) { // get data (Object) that is ts maximally <=ts
       var find = this.findBound(ts);
       if (!find)
           return null;
       return find.data;
   }
-
   size () {
       return this._length;
   }
-
   print () {//test printing
       var iterator = this._head;
       var i=0;
@@ -853,16 +859,12 @@ class LinkedList { // Timeline Doubly Linked List
   }
 }
 
-
 class Timeline { // not done yet
   constructor (engine) {
     this.engine = engine;
     this.subscriber = [];
 
-    // worldline is timeline doubly linked lists consist of object... which
-    //   - each index [1,2,3,4] of
-    //     - each property {a:,p:,v:} of
-    //       - each value {x:,y:}
+    // worldline is timeline doubly linked list wtih methods:
     this.worldline = new LinkedList();
 
     this.com_dom = 20; //common denominator = 20 ms
