@@ -124,6 +124,9 @@ class FightOGame extends Room {
       client.player.lastAccel.y = data.y;
       console.log('received accel'+client.player.lastAccel.x +client.player.lastAccel.y);
     }
+    if (data.type == 'ping') {
+      this.send (client,new FightOMessage('ping',data.ts));
+    }
   }
 
   // Cleanup callback, called after there are no more clients in the room. (see `autoDispose`)

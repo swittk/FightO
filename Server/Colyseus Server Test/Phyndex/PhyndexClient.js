@@ -1,7 +1,7 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-//var client = new Colyseus.Client('ws://localhost:4040')
-var client = new Colyseus.Client('wss://fightochamp.herokuapp.com');
+var client = new Colyseus.Client('ws://localhost:7000')
+//var client = new Colyseus.Client('wss://fightochamp.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
@@ -46,7 +46,7 @@ class FightOJSClient {
       self.onData(message);
     });
     
-    this.setUpdateRate(30);
+    this.setUpdateRate(60);
   }
   
   startListeningToNewChanges() {
@@ -69,7 +69,7 @@ class FightOJSClient {
   }
   
   onData(message) {
-    console.log(message);
+    //console.log(message);
     switch(message.type) {
       case "AUM" : 
         this.buffer.push(message);
@@ -77,8 +77,11 @@ class FightOJSClient {
       case "identify" : 
         this.self_id = message.payload;
         break;
+      case "ping" :
+        console.log("ping: "+ (((new Date()).getTime())-message.payload));
+        break;
       default: 
-        logOutput("IDENTIFY"+message.type + " & " + message.payload);
+        logOutput("Default"+message.type + " & " + message.payload);
         break;
     }
   }
@@ -87,6 +90,11 @@ class FightOJSClient {
     this.room.send({type:'accel',x:x, y:y});
   }
   
+  sendPing (x, y) {
+    //console.log ("send ping" + (new Date()).getTime());
+    this.room.send({type:'ping',ts:(new Date()).getTime()});
+  }
+
   setClientName(name, now) {
     this.room.send({type:"nameset", name : name, ts : now});
   }
@@ -114,6 +122,7 @@ class FightOJSClient {
     if (!this.self_id) {
       return;
     }
+    this.sendPing();
     this.processInputs();
     this.interpolateOthers();
     this.adjustrendering();
@@ -129,17 +138,20 @@ class FightOJSClient {
       var updatelist = this.buffer[0].payload;
       this.buffer.splice(0,1);
       console.log("BUFFER" + this.buffer);
-      var no_buffer = false;////////////////////////////////////////
+      var no_buffer = true;////////////////////////////////////////
       for (var item of updatelist) {
         if (no_buffer) {
+          console.log(item);
           this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
           this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
+          this.fightEngine.setAcceleration(item.idx, item.a.x, item.a.y);
         }
         else {
           if ((this.self_id == item.idx)) {
             // Received true position of this body from server in the past
-            this.fightEngine.setPosition(item.idx, item.p.x, item.p.y);
             this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
+            this.fightEngine.setVelocity(item.idx, item.v.x, item.v.y);
+            this.fightEngine.setAcceleration(item.idx, item.a.x, item.a.y);
             //Server Reconciliation. Re-apply all inputs not yet processed by server
             var i = 0;
             while (i < this.pending_inputs.length) {
