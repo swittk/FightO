@@ -26,7 +26,7 @@ if (typeof module !== 'undefined' && module.exports) {
 const mapUnitSize = 15;
 const playerDiameter = 2; //player diameter in units
 
-const forceScaling = 20.0;
+const forceScaling = 100.0;
 
 const MessageType_ActiveUpdateMessage = "AUM";
 
@@ -256,6 +256,15 @@ class FightOEngine {
     return true;
   }
   
+  setAcceleration(index, x, y) {
+    var player = this.getPlayerFromBodyId(index);
+    if(!player)
+      return false;
+    player.lastAccel.x = x;
+    player.lastAccel.y = y;
+    return true;
+  }
+
   setAngle(index, a) {
     var body = this.getBodyIfObjectIsActive(index); if(!body) return false; Matter.Body.setAngle(body, a);
     return true;
@@ -318,6 +327,13 @@ class FightOEngine {
     this.players.push(player);
     console.log("pushed player");
     return player;
+  }
+
+  getPlayerFromBodyId (index) {
+    for (var player of this.players) {
+      if (player.bodyId==index)
+        return player;
+    }
   }
   
   playerCanJoin(player) {
@@ -621,7 +637,8 @@ class FightOEngine {
     while (item = iterator.next(), !item.done) {
       var bodyindex = item.value;
       var body = this.getBody(bodyindex);
-      var bodystats = {"idx":bodyindex, "p":body.position, "v":body.velocity};
+      var player = this.getPlayerFromBodyId(bodyindex);
+      var bodystats = {"idx":bodyindex, "p":body.position, "v":body.velocity, "a":player.lastAccel};
       items.push(bodystats);
     }
     
@@ -697,13 +714,13 @@ function extend(base, sub) {
     //          ts: timestamp (absolute milisecond)
     //          val: object... which
     //                  - each index [1,2,3,4] of
-    //                    - each property {a:,p:,v:} of
+    //                    - each property [a:,p:,v:] (as 0,1,2) of
     //                      - each value {x:,y:}
     //    2. getValue (ts) // get obj(val) at timeline(ts) - [If no obj at ts, return obj at latest time avaliable that less than ts; If no such obj return null]
     //    3. removeUntil (ts) // set target at obj which maximally less or equal than ts; then remove data from timeline since start until before that obj without delete that obj
     //             - intended to clearing the memories since older version of state is no use
     //    4. size () // return number of nodes in linklist
-    //    5. print () // print linklist to console log
+    //    5. printlist () // print linklist to console log
 class LinkedList { // Timeline Doubly Linked List
   constructor () {
     this._head = null;
@@ -793,6 +810,15 @@ class LinkedList { // Timeline Doubly Linked List
     this._length--;
     return toReturn;
   }
+
+  merge (host,obj) {
+    for (var i in obj) {
+      for (var j in obj[i]) {
+        host[i][j] = obj[i][j];
+      }
+    }
+  }
+  
   addValue (ts,val) { // add new node at/just after ts
     var insert = this.findBound(ts);
     if (insert===null) 
@@ -800,7 +826,7 @@ class LinkedList { // Timeline Doubly Linked List
     else if (insert===this._tail)
         this.addAtBack(ts,val); // add new node at back
     else if (insert.ts===ts) {
-        insert.data = val; // found same ts => replace data
+        this.merge(insert.data,val); // found same ts => merge data
     } else {
         var temp = this.nodeCreate(ts, val);
         temp.prev = insert; // add new node inbetween
@@ -843,7 +869,7 @@ class LinkedList { // Timeline Doubly Linked List
   size () {
       return this._length;
   }
-  print () {//test printing
+  printlist () {//test printing
       var iterator = this._head;
       var i=0;
       console.log(this._head)
@@ -860,25 +886,86 @@ class LinkedList { // Timeline Doubly Linked List
 }
 
 class Timeline { // not done yet
-  constructor (engine) {
+  constructor (engine, game, isServer) {
     this.engine = engine;
+    this.Postman = game; //Server: FightOGame, Clients: FightOJSClient.room
     this.subscriber = [];
-
+    this.mapName = [];
+    this.mapName_length = 0;
+    this.letterbox = [];
+    this.isServer = isServer || false;
     // worldline is timeline doubly linked list wtih methods:
     this.worldline = new LinkedList();
 
     this.com_dom = 20; //common denominator = 20 ms
+    
+    setUpLetterBox ();
   }
 
   clock_now () {
-    return engine.timestamp;
+    return (new Date()).getTime();
   }
 
   // OTL = other timeline
   subscribe (OTL) {
-    OTL.subscriber.push(this);
+    this.room.send({type:'requ',})
   }
 
+  sendLetter (type,item) {
+    var payload = item || null;
+    if (this.isServer) {
+      for (var i of subscriber) {
+
+      }
+    } else {
+      room.send({type:type,payload:payload});
+    }
+  }
+
+  setUpLetterBox () {
+    if (this.isServer) {
+      this.Postman.onMessage.add(function(client,letter) {
+        if (letter.type == 'subs') {
+          switch (letter.payload.type) {
+            case "haji": // initial message from sender "hajimemashite"
+                console.log ("Subscription success! => from: " + client.name + " OR " + mapName[client.name]);
+              break;
+            case "mess": // message from sender that we subscribe
+                var temp = this.worldline.makeNodeData()
+                this.worldline.addValue(state.ts,temp);
+              break;
+            case "requ": // request letter from subscriber
+                this.subscriber.push(/*server*/);
+                mapName[client.name]=mapName_length;
+                this.sendLetter("haji",mapName_length++);
+              break;
+          }
+        }
+      });
+    } else {
+      this.Postman.onData.add(function(letter) {
+        if (letter.type=='subs') {
+          switch (letter.payload.type) {
+            case "haji": // initial message from sender "hajimemashite"
+                console.log ("Subscription success!");
+              break;
+            case "mess": // message from sender that we subscribe
+                this.updateState (letter.payload.pack);
+              break;
+            case "requ": // request letter from subscriber
+                this.subscriber.push(/*server*/);
+                this.sendLetter("haji");
+              break;
+          }
+        }
+      });
+    }
+  }
+
+  updateState (state) {
+    this.worldline.addValue (state.ts,state.package);
+  }
+  
   // rel_time = relative time from now(0)
   // type = a: "acceleration", v: "velocity", p:"position"
   // idx = index
@@ -886,9 +973,13 @@ class Timeline { // not done yet
   // get data
   // type is 'p','v','a'
   // return {x:,y:}
+
+  roundToCM (number) {
+    return this.com_dom * Math.round(number*1.0/this.com_dom); // round to nearest common denominator
+  }
+
   get (rel_time, idx, type) {
-    let abs_time = this.clock_now() + rel_time;
-    abs_time = this.com_dom * Math.round(abs_time/this.com_dom) // round to nearest common denominator
+    let abs_time = roundToCM(this.clock_now() + rel_time); // round to nearest common denominator
     get_value = database[abs_time][idx][type];
     if (!get_value)
     {
@@ -900,11 +991,10 @@ class Timeline { // not done yet
   // set data
   // data come in {p:{x:,y:},v:{x:,y:},a{x:,y:}}
   set (rel_time, idx, data) {
-    let abs_time = this.clock_now() + rel_time;
-    abs_time = this.com_dom * Math.round(abs_time/this.com_dom) // round to nearest common denominator
+    let abs_time = roundToCM(this.clock_now() + rel_time); // round to nearest common denominator
     worldline[abs_time][idx] = data;
   }
-
+  
   // each come in {x:,y:}
   // return data object
   create_data (pos, vel, acc) {
