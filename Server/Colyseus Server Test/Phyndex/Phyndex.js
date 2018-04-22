@@ -717,7 +717,7 @@ function extend(base, sub) {
     //    1. addValue (ts,val) //add obj(val) at timeline(ts) - [should round down to common denominator first to make it faster]
     //          ts: timestamp (absolute milisecond)
     //          val: object... which
-    //                  - each index [1,2,3,4] of
+    //                  - each bodyindex [1,2,3,4] of
     //                    - each property [a:,p:,v:] (as 0,1,2) of
     //                      - each value {x:,y:}
     //    2. getValue (ts) // get obj(val) at timeline(ts) - [If no obj at ts, return obj at latest time avaliable that less than ts; If no such obj return null]
@@ -730,6 +730,9 @@ class LinkedList { // Timeline Doubly Linked List
     this._head = null;
     this._tail = null;
     this._length = 0;
+  }
+  arrayHasOwnIndex(array, prop) {
+    return array.hasOwnProperty(prop) && /^0$|^[1-9]\d*$/.test(prop) && prop <= 4294967294; // something for loop in array
   }
   nodeCreate (ts,val) {
       var temp = {};
@@ -814,15 +817,13 @@ class LinkedList { // Timeline Doubly Linked List
     this._length--;
     return toReturn;
   }
-
-  merge (host,obj) {
-    for (var i in obj) {
-      for (var j in obj[i]) {
-        host[i][j] = obj[i][j];
+  merge (node, val) {
+    for (key in val) {
+      if (arrayHasOwnIndex(val, key)) {
+          node[key] = {...node[key], ...val[key]};
       }
     }
   }
-  
   addValue (ts,val) { // add new node at/just after ts
     var insert = this.findBound(ts);
     if (insert===null) 
@@ -830,7 +831,7 @@ class LinkedList { // Timeline Doubly Linked List
     else if (insert===this._tail)
         this.addAtBack(ts,val); // add new node at back
     else if (insert.ts===ts) {
-        this.merge(insert.data,val); // found same ts => merge data
+        this.merge(insert, val); // found same ts => merge data
     } else {
         var temp = this.nodeCreate(ts, val);
         temp.prev = insert; // add new node inbetween
@@ -889,119 +890,89 @@ class LinkedList { // Timeline Doubly Linked List
   }
 }
 
-class Timeline { // not done yet
-  constructor (engine, game, isServer) {
+// Data object {core of every node} is
+//     ActivebodyIDs [] = {
+//         'p' = {x:,y:},
+//         'v' = {x:,y:},
+//         'a' = {x:,y:} };
+
+// Timeline methods:
+//
+//        Constructor: (engine,phyndex,room)
+//
+//     1. set (rel_time)
+//            setActiveMessage into relative time of timeline
+//     2. set (rel_time, key, bodyidx, val)
+//            set specific key into timeline
+//            eg. set key 'a' in bodyidx by val{x:,y:}
+//     3. get (rel_time)
+//            get Data object from timeline at relative time
+//     4. parsestr () {TO BE DONE}
+//            parse all timeline data into string
+//     5. parsetimeline (string) {TO BE DONE}
+//            parse string into timeline
+
+class Timeline {
+  constructor (engine,phyndex,room) {
     this.engine = engine;
-    this.Postman = game; //Server: FightOGame, Clients: FightOJSClient.room
-    this.subscriber = [];
-    this.mapName = [];
-    this.mapName_length = 0;
-    this.letterbox = [];
-    this.isServer = isServer || false;
-    // worldline is timeline doubly linked list wtih methods:
-    this.worldline = new LinkedList();
+    this.phyndex = phyndex;
+    this.room = room;
+    // timeline is doubly linked list wtih methods:
+    this.timeline = new LinkedList();
 
     this.com_dom = 20; //common denominator = 20 ms
-    
-    setUpLetterBox ();
+
+    setMessageSyncronization(); // set up receive message function 
+  }
+  
+  setMessageSyncronization () { // add onData for message reciever
+    this.room.onData.add( function (message) {
+      if (message.type == 'TL') { // Timeline
+        this.timeline.addValue(ts,val);
+      }
+    });
   }
 
   clock_now () {
     return (new Date()).getTime();
   }
 
-  // OTL = other timeline
-  subscribe (OTL) {
-    this.room.send({type:'requ',})
+  roundToCM (number) { // round number to nearest common denominator
+    return this.com_dom * Math.round(number*1.0/this.com_dom); 
   }
 
-  sendLetter (type,item) {
-    var payload = item || null;
-    if (this.isServer) {
-      for (var i of subscriber) {
+  relTime_to_Epoch (rel_time) { // change relative time to absolute time
+    return this.roundToCM(this.clock_now() + rel_time);
+  }
 
-      }
-    } else {
-      room.send({type:type,payload:payload});
+  bakeActiveIndex () { // return payload = ActiveUpdateMessages
+    var payload = [];
+    var iterator = this.phyndex.activeIndices.keys();
+    var it;
+    while (it = iterator.next(), !it.done) {
+      var bodyidx = it.value;
+      var body = this.phyndex.getBody(bodyidx);
+      payload[bodyidx].p = body.position; // {x,y}
+      payload[bodyidx].v = body.velocity; // {x,y}
     }
+    return payload;
   }
 
-  setUpLetterBox () {
-    if (this.isServer) {
-      this.Postman.onMessage.add(function(client,letter) {
-        if (letter.type == 'subs') {
-          switch (letter.payload.type) {
-            case "haji": // initial message from sender "hajimemashite"
-                console.log ("Subscription success! => from: " + client.name + " OR " + mapName[client.name]);
-              break;
-            case "mess": // message from sender that we subscribe
-                var temp = this.worldline.makeNodeData()
-                this.worldline.addValue(state.ts,temp);
-              break;
-            case "requ": // request letter from subscriber
-                this.subscriber.push(/*server*/);
-                mapName[client.name]=mapName_length;
-                this.sendLetter("haji",mapName_length++);
-              break;
-          }
-        }
-      });
-    } else {
-      this.Postman.onData.add(function(letter) {
-        if (letter.type=='subs') {
-          switch (letter.payload.type) {
-            case "haji": // initial message from sender "hajimemashite"
-                console.log ("Subscription success!");
-              break;
-            case "mess": // message from sender that we subscribe
-                this.updateState (letter.payload.pack);
-              break;
-            case "requ": // request letter from subscriber
-                this.subscriber.push(/*server*/);
-                this.sendLetter("haji");
-              break;
-          }
-        }
-      });
+  set (rel_time, key, bodyidx, val) { // if (one argument) {setActiveMessage}  else {set specific key} eg. set key 'a' in bodyidx in val
+    var abs_time = this.relTime_to_Epoch(rel_time); // get absolute time
+    var payload = [];
+    if (key===undefined) { // if only one argument
+      payload = bakeActiveIndex(); // payload = AUM
+    } else { // else have 4 arguments
+      payload[bodyidx] = {[key]: val}; // payload = specific value
     }
+    this.timeline.addValue(abs_time, payload); // merge payload into timeline
+    this.room.broadcast({type:'TL',ts:abs_time,val:payload}); // broadcast to all clients
   }
 
-  updateState (state) {
-    this.worldline.addValue (state.ts,state.package);
+  get (rel_time) {
+    var abs_time = this.relTime_to_Epoch(rel_time); // get absolute time
+    return this.timeline.getValue(abs_time); // return data object from timeline
   }
   
-  // rel_time = relative time from now(0)
-  // type = a: "acceleration", v: "velocity", p:"position"
-  // idx = index
-
-  // get data
-  // type is 'p','v','a'
-  // return {x:,y:}
-
-  roundToCM (number) {
-    return this.com_dom * Math.round(number*1.0/this.com_dom); // round to nearest common denominator
-  }
-
-  get (rel_time, idx, type) {
-    let abs_time = roundToCM(this.clock_now() + rel_time); // round to nearest common denominator
-    get_value = database[abs_time][idx][type];
-    if (!get_value)
-    {
-
-    }
-    return database[abs_time][idx][type];
-  }
-
-  // set data
-  // data come in {p:{x:,y:},v:{x:,y:},a{x:,y:}}
-  set (rel_time, idx, data) {
-    let abs_time = roundToCM(this.clock_now() + rel_time); // round to nearest common denominator
-    worldline[abs_time][idx] = data;
-  }
-  
-  // each come in {x:,y:}
-  // return data object
-  create_data (pos, vel, acc) {
-    return {p:pos,v:vel,a:acc};
-  }
 }
