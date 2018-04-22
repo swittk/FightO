@@ -523,6 +523,10 @@ class FightOEngine {
         var player = self.players[i];
 //         console.log("player is "+JSON.stringify(player));
         var force = Matter.Vector.create(player.lastAccel.x*forceScaling,-player.lastAccel.y*forceScaling);
+
+//TODO: Champ, tap force input here.        
+//        var force = self.timeline.forceAtTime((new Date()).milliseconds());
+        
         var body = self.getBody(player.bodyId);
 //         console.log("body is "+JSON.stringify(body));
         console.log("force is " + JSON.stringify(force));
