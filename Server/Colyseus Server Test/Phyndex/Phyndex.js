@@ -712,19 +712,19 @@ function extend(base, sub) {
   });
 }
 
-    //    Doubly linkedlist for timeline
-    //    methods:
-    //    1. addValue (ts,val) //add obj(val) at timeline(ts) - [should round down to common denominator first to make it faster]
-    //          ts: timestamp (absolute milisecond)
-    //          val: object... which
-    //                  - each bodyindex [1,2,3,4] of
-    //                    - each property [a:,p:,v:] (as 0,1,2) of
-    //                      - each value {x:,y:}
-    //    2. getValue (ts) // get obj(val) at timeline(ts) - [If no obj at ts, return obj at latest time avaliable that less than ts; If no such obj return null]
-    //    3. removeUntil (ts) // set target at obj which maximally less or equal than ts; then remove data from timeline since start until before that obj without delete that obj
-    //             - intended to clearing the memories since older version of state is no use
-    //    4. size () // return number of nodes in linklist
-    //    5. printlist () // print linklist to console log
+//    Doubly linkedlist for timeline
+//    methods:
+//    1. addValue (ts,val) //add obj(val) at timeline(ts) - [should round down to common denominator first to make it faster]
+//          ts: timestamp (absolute milisecond)
+//          val: object... which
+//                  - each bodyindex [1,2,3,4] of
+//                    - each property [a:,p:,v:] (as 0,1,2) of
+//                      - each value {x:,y:}
+//    2. getValue (ts) // get obj(val) at timeline(ts) - [If no obj at ts, return obj at latest time avaliable that less than ts; If no such obj return null]
+//    3. removeUntil (ts) // set target at obj which maximally less or equal than ts; then remove data from timeline since start until before that obj without delete that obj
+//             - intended to clearing the memories since older version of state is no use
+//    4. size () // return number of nodes in linklist
+//    5. printlist () // print linklist to console log
 class LinkedList { // Timeline Doubly Linked List
   constructor () {
     this._head = null;
@@ -787,38 +787,38 @@ class LinkedList { // Timeline Doubly Linked List
       }
       this._length++;
   }
-  removeAtFront () { // no use yet
+  removeAtFront () {
     var toReturn = null;
     if (this._head) {
       toReturn = this._head.data;
-      if (this.tail===this._head) {
+      if (this._tail===this._head) {
         this._head = null;
-        this.tail = null;
+        this._tail = null;
       } else {
         this._head = this._head.next;
         this._head.prev = null;
       }
+      this._length--;
     }
-    this._length--;
     return toReturn;
   }
-  removeAtBack () { // no use yet
+  removeAtBack () {
     var toReturn = null;
     if (this._tail) {
       toReturn = this._tail.data;
-      if (this.head===this._tail) {
+      if (this._head===this._tail) {
         this._head = null;
         this._tail = null;
       } else {
         this._tail = this._tail.prev;
         this._tail.next = null;
       }
+      this._length--;
     }
-    this._length--;
     return toReturn;
   }
   merge (node, val) {
-    for (key in val) {
+    for (var key in val) {
       if (arrayHasOwnIndex(val, key)) {
           node[key] = {...node[key], ...val[key]};
       }
@@ -888,6 +888,29 @@ class LinkedList { // Timeline Doubly Linked List
           iterator = iterator.next;
       }
   }
+  stringify () {
+    var payload = {};
+    if (this._head!==null) {
+      var iterator = this._head;
+      while (true) {
+          payload[iterator.ts] = iterator.data;
+          if (iterator===this._tail)
+            break;
+          iterator = iterator.next;
+      };
+    }
+    return JSON.stringify(payload);
+  }
+  parse (str) {
+    var payload = JSON.parse(str);
+    this.removeUntil(4294967294);
+    this.removeAtFront();
+    for (var key in payload) {
+      if (this.arrayHasOwnIndex(payload, key)) {
+        this.addValue(key, payload[key]);
+      }
+    }
+  }
 }
 
 // Data object {core of every node} is
@@ -907,9 +930,9 @@ class LinkedList { // Timeline Doubly Linked List
 //            eg. set key 'a' in bodyidx by val{x:,y:}
 //     3. get (rel_time)
 //            get Data object from timeline at relative time
-//     4. parsestr () {TO BE DONE}
+//     4. stringify ()
 //            parse all timeline data into string
-//     5. parsetimeline (string) {TO BE DONE}
+//     5. parse (string)
 //            parse string into timeline
 
 class Timeline {
@@ -931,6 +954,14 @@ class Timeline {
         this.timeline.addValue(ts,val);
       }
     });
+  }
+
+  stringify () {
+    return this.timeline.stringify();
+  }
+
+  parse (str) {
+    this.timeline.parse(str);
   }
 
   clock_now () {
