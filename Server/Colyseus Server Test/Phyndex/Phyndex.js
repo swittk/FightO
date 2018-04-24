@@ -519,10 +519,12 @@ class FightOEngine {
     var self = this;
     Matter.Events.on(engine, "beforeUpdate", function(event) {
       //console.log("Applying force");
+      var data = this.timeline.get
       for(var i = 0; i < self.players.length; i++) {
         var player = self.players[i];
 //         console.log("player is "+JSON.stringify(player));
         var force = Matter.Vector.create(player.lastAccel.x*forceScaling,-player.lastAccel.y*forceScaling);
+        
 
 //TODO: Champ, tap force input here.        
 //        var force = self.timeline.forceAtTime((new Date()).milliseconds());
@@ -921,7 +923,7 @@ class LinkedList { // Timeline Doubly Linked List
 
 // Timeline methods:
 //
-//        Constructor: (engine,phyndex,room)
+//        Constructor: (room, isServer) // isServer = true / false
 //
 //     1. set (rel_time)
 //            setActiveMessage into relative time of timeline
@@ -936,16 +938,15 @@ class LinkedList { // Timeline Doubly Linked List
 //            parse string into timeline
 
 class Timeline {
-  constructor (engine,phyndex,room) {
-    this.engine = engine;
-    this.phyndex = phyndex;
+  constructor (room, isServer) {
     this.room = room;
+    this.isServer = isServer;
     // timeline is doubly linked list wtih methods:
     this.timeline = new LinkedList();
 
     this.com_dom = 20; //common denominator = 20 ms
-
-    setMessageSyncronization(); // set up receive message function 
+    if (!this.isServer)
+      setMessageSyncronization(); // set up receive message function 
   }
   
   setMessageSyncronization () { // add onData for message reciever
@@ -989,16 +990,23 @@ class Timeline {
     return payload;
   }
 
+  get_ts (rel_time) {
+    return this.relTime_to_Epoch(rel_time);
+  }
+
   set (rel_time, key, bodyidx, val) { // if (one argument) {setActiveMessage}  else {set specific key} eg. set key 'a' in bodyidx in val
-    var abs_time = this.relTime_to_Epoch(rel_time); // get absolute time
+    var abs_time; // get absolute time
     var payload = [];
     if (key===undefined) { // if only one argument
+      abs_time = this.relTime_to_Epoch(rel_time);
       payload = bakeActiveIndex(); // payload = AUM
     } else { // else have 4 arguments
+      abs_time = rel_time;
       payload[bodyidx] = {[key]: val}; // payload = specific value
     }
     this.timeline.addValue(abs_time, payload); // merge payload into timeline
-    this.room.broadcast({type:'TL',ts:abs_time,val:payload}); // broadcast to all clients
+    if (this.isServer)
+      this.room.broadcast({type:'TL',ts:abs_time,val:payload}); // broadcast to all clients
   }
 
   get (rel_time) {

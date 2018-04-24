@@ -55,7 +55,7 @@ class FightOGame extends Room {
   onInit (options) {
     console.log("map is "+JSON.stringify(options.map)); 
     this.fightEngine = new FightOEngine();
-        
+    this.timeline = new Timeline (this, true); // send room, this is server
     //Set patch rate in milliseconds, default is 50
     //this.setPatchRate(50);
     
@@ -70,12 +70,12 @@ class FightOGame extends Room {
     var self = this;
     this.engineTimer = 
     setInterval(function() {
-      self.fightEngine.step(0.05);
+      self.fightEngine.step(0.02);
     }, 50);
-    
+    /*
     this.activeUpdateTimer = setInterval(function(){
       self.sendActiveUpdateMessage();
-    }, 50);
+    }, 50);*/
     
     this.setState(new GameState(this.fightEngine.stateObject));
   }
@@ -120,9 +120,13 @@ class FightOGame extends Room {
       return;
     }
     if(data.type == 'accel') {
-      client.player.lastAccel.x = data.x;
-      client.player.lastAccel.y = data.y;
-      console.log('received accel'+client.player.lastAccel.x +client.player.lastAccel.y);
+      if (this.validateInput(data.ts,client.player,data.val)) {
+        this.timeline.set(data.ts,'a',client.player.bodyId,data.val);
+        console.log('received accel'+data.val);
+      } else {
+        console.log('input error');
+      }
+      
     }
     if (data.type == 'ping') {
       this.send (client,new FightOMessage('ping',data.ts));
@@ -132,11 +136,30 @@ class FightOGame extends Room {
   // Cleanup callback, called after there are no more clients in the room. (see `autoDispose`)
   onDispose () {
   }
-  
+  /*
   sendActiveUpdateMessage() {
     var message = this.fightEngine.createActiveUpdateMessage();
     //console.log("send active message" + JSON.stringify(message));
     this.broadcast(message);
+}*/
+
+  validateInput (ts, idx, val) {
+    var pingDelay = 100;
+    var now = (new Date()).getTime();
+    var maxAccel = 1;
+    if (ts < now + pingDelay) { //invalid timestamp -> set accel in past
+      return false;
+    }
+    if (Math.abs(val.x) > maxAccel) {
+      return false;
+    }
+    if (Math.abs(val.y) > maxAccel) {
+      return false;
+    }
+    if (idx === undefined) {
+      return false;
+    }
+    return true;
   }
 }
 
