@@ -1,7 +1,7 @@
 //var {Phyndex, FightOEngine} = require('./Phyndex.js');
 
-//var client = new Colyseus.Client('ws://localhost:4040')
-var client = new Colyseus.Client('wss://fightochamp.herokuapp.com');
+var client = new Colyseus.Client('ws://localhost:4000')
+//var client = new Colyseus.Client('wss://fightochamp.herokuapp.com');
 
 function nameSet() {
   var name = document.getElementById("nameInput").value;
