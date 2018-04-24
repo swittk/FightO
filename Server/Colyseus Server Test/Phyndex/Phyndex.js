@@ -536,8 +536,10 @@ class FightOEngine {
       if (self.isServer) {
         self.processInputs();
         self.timeline.set(DELAY_server_to_client); // set timeline in future and broadcast it
+        self.timeline.flushCache(-DELAY_server_to_client);
       } else {
         self.processTimeline();
+        self.timeline.flushCache(0);
       }
     });
   }
@@ -546,11 +548,12 @@ class FightOEngine {
     //console.log("Applying force");
     var state = this.timeline.get(DELAY_server_to_client); // get future state {MAP} for processing
     console.log("state is " + JSON.stringify(state));
+    console.log("timeline : "+this.timeline.stringify());
     if (state) {
       for(var i = 0; i < this.players.length; i++) {
         var playerID = this.players[i].bodyId; // get player's id
-        if (state.has(playerID)) {
-          var player = state.get(playerID); // get player status from state
+        if ("playerID" in state) {
+          var player = state[playerID]; // get player status from state
           console.log("player is " + JSON.stringify(player));
           if (player.hasOwnProperty('a')) { // if having force
             var force = Matter.Vector.create(player.a.x*forceScaling,-player.a.y*forceScaling); // change force to Matter.Vector
@@ -569,6 +572,7 @@ class FightOEngine {
 
   processTimeline() {
     var state = this.timeline.get(0); // get current state at now
+    console.log("pcessing now stt of "+JSON.stringify(state));
     for (var key in state) { // loop in state {Active indices}
       if (arrayHasOwnIndex(val,key)) {
         var payload = state[key];
@@ -771,14 +775,22 @@ class LinkedList { // Timeline Doubly Linked List
   }
   mergeMap (node, val) {
     for (var [key, new_data] in val) {
-        var old_data = node.get(key);
-        node.set(key,{...old_data, ...new_data});
+        var old_data = node[key];
+        var obj = {};
+        for(var k in old_data) {
+          obj[k] = old_data[k];
+        }
+        for(var k in new_data) {
+          obj[k] = new_data[k];
+        }
+        node[key] = obj;
+        //node.set(key,{...old_data, ...new_data}); //Troublesome code; ES2018 is not fully supported yet.
     }
   }
   nodeCreate (ts,val) {
       var temp = {};
       temp.ts = Number(ts); // to eliminate WTF events like javascript thinking that "ts" is string, so ("5" > "15") is "true" => wasted 6 hrs finding this bug.
-      temp.data = new Map();
+      temp.data = {};
       this.mergeMap (temp.data, val);
       temp.prev = null;
       temp.next = null;
@@ -861,19 +873,25 @@ class LinkedList { // Timeline Doubly Linked List
   }
   addValue (ts,val) { // add new node at/just after ts
     var insert = this.findBound(ts);
-    if (insert===null) 
-        this.addAtFront(ts,val); // add new node at front
-    else if (insert===this._tail)
-        this.addAtBack(ts,val); // add new node at back
+    if (insert===null) {
+      this.addAtFront(ts,val); // add new node at front
+      console.log('add front');
+    }
+    else if (insert===this._tail) {
+      this.addAtBack(ts,val); // add new node at back
+      console.log('add back');
+    }
     else if (insert.ts===ts) {
-        this.mergeMap(insert.data, val); // found same ts => merge data
+      this.mergeMap(insert.data, val); // found same ts => merge data
+      console.log('merge with last');
     } else {
-        var temp = this.nodeCreate(ts, val);
-        temp.prev = insert; // add new node inbetween
-        temp.next = insert.next;
-        temp.prev.next = temp;
-        temp.next.prev = temp;
-        this._length++;
+      var temp = this.nodeCreate(ts, val);
+      temp.prev = insert; // add new node inbetween
+      temp.next = insert.next;
+      temp.prev.next = temp;
+      temp.next.prev = temp;
+      this._length++;
+      console.log('independent creation');
     }
   }
   removeUntil (ts) { // remove unused node (until >= ts) for sake of freeing memory
@@ -979,7 +997,7 @@ class Timeline {
     this.timeline = new LinkedList();
 
     this.com_dom = 20; //common denominator = 20 ms
-    this.Clearcache_ts = 0;
+    this.Clearcache_ts = 100;
     //if (!this.isServer)
     //  this.setMessageSyncronization(); // set up receive message function 
   }
@@ -1021,14 +1039,16 @@ class Timeline {
   }
 
   bakeActiveIndex () { // return payload = ActiveUpdateMessages
-    var payload = new Map();
+    var payload = {};
     var iterator = this.engine.activeIndices.keys();
     var it;
+    console.log('iterate'+iterator);
     while (it = iterator.next(), !it.done) {
       var bodyidx = it.value;
       var body = this.engine.getBody(bodyidx);
-      payload.set(bodyidx,{p:body.position, v:body.velocity});
+      payload[bodyidx] = {p:body.position, v:body.velocity};
     }
+    
     return payload;
   }
 
@@ -1044,9 +1064,10 @@ class Timeline {
       payload = this.bakeActiveIndex(); // payload = AUM
     } else { // else have 4 arguments
       abs_time = rel_time;
-      payload = new Map();
-      payload.set(bodyidx, {[key]: val}); // payload = specific value
+      payload = {};
+      payload[bodyidx] = {[key]: val}; // payload = specific value
     }
+    //console.log("payload of "+JSON.stringify(payload));
     this.timeline.addValue(abs_time, payload); // merge payload into timeline
     if (this.isServer)
       this.room.broadcast({type:'TL',ts:abs_time,val:payload}); // broadcast to all clients
@@ -1054,8 +1075,11 @@ class Timeline {
 
   get (rel_time) {
     var abs_time = this.relTime_to_Epoch(rel_time); // get absolute time
-    this.timeline.removeUntil(abs_time-this.Clearcache_ts);
     return this.timeline.getValue(abs_time); // return data object from timeline
   }
   
+  flushCache(rel_time) {
+    var abs_time = this.relTime_to_Epoch(rel_time); // get absolute time
+    this.timeline.removeUntil(abs_time-this.Clearcache_ts);
+  }
 }
