@@ -5,6 +5,7 @@ const Matter = require('matter-js');
 const {Phyndex, FightOEngine, FightOMessage} = require('./Phyndex.js');
 
 const http = require('http');
+const DELAY_input_to_client = 400.0;
 
 var sampleLevel = {
   "size" : {w:100,h:100},
@@ -119,9 +120,9 @@ class FightOGame extends Room {
       return;
     }
     if(data.type == 'accel') {
-      if (this.validateInput(client.player,data.val)) {
-        this.fightEngine.timeline.set(DELAY_input_to_client,'a',client.player.bodyId,data.val);
-        console.log('received accel'+data.val);
+      if (this.validateInput(client.player,data.x,data.y)) {
+        this.fightEngine.timeline.set(DELAY_input_to_client,'a',client.player.bodyId,{x:data.x,y:data.y});
+        //console.log('received accel'+data.x+" "+data.y);
       } else {
         console.log('input error');
       }
@@ -142,17 +143,17 @@ class FightOGame extends Room {
     this.broadcast(message);
 }*/
 
-  validateInput (idx, val) {
+  validateInput (idx, x, y) {
     var pingDelay = 100;
     var now = (new Date()).getTime();
     var maxAccel = 1;/*
     if (ts < now + pingDelay) { //invalid timestamp -> set accel in past
       return false;
     }*/
-    if (Math.abs(val.x) > maxAccel) {
+    if (Math.abs(x) > maxAccel) {
       return false;
     }
-    if (Math.abs(val.y) > maxAccel) {
+    if (Math.abs(y) > maxAccel) {
       return false;
     }
     if (idx === undefined) {

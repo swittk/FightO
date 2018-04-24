@@ -23,7 +23,6 @@ function removeById(id) {
 class FightOJSClient {
   constructor(roomname) {
     var self = this;
-    this.buffer = [];
     this.self_id = null;
     this.room = client.join(roomname);
     this.fightEngine = new FightOEngine(this.room, false); //this is not server
@@ -79,16 +78,19 @@ class FightOJSClient {
       case "ping" :
         console.log("ping: "+ (((new Date()).getTime())-message.payload));
         break;
+      case "TL" :
+        this.fightEngine.timeline.recieveMessage(message);
+        break;
       default: 
         logOutput("Default"+message.type + " & " + message.payload);
         break;
     }
   }
-  /*
+  
   sendInput(x, y) {
     this.room.send({type:'accel',x:x, y:y});
   }
-  */
+  
   sendPing (x, y) {
     //console.log ("send ping" + (new Date()).getTime());
     this.room.send({type:'ping',ts:(new Date()).getTime()});

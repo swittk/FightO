@@ -223,12 +223,16 @@ class FightOEngine {
   constructor(room, isServer, engine) {
     if(!engine) {
       this.engine = Matter.Engine.create();
+      console.log("engine = undefined");
     }
-    else this.engine = engine;
+    else {
+      this.engine = engine;
+      console.log("engine = present");
+    }
     this.phyndex = new Phyndex(this.engine);
     this.isServer = isServer;
     this.room = room;
-    this.timeline = new Timeline(this.room, this.isServer);
+    this.timeline = new Timeline(this, this.room, this.isServer);
     this.players = [];
     
     this.activeIndices = new Map();
@@ -526,30 +530,39 @@ class FightOEngine {
   }
   
   registerEngineForForces() {
+    var engine = this.phyndex.engine;
+    var self = this;
     Matter.Events.on(engine, "beforeUpdate", function(event) {
-      if (this.isServer) {
-        this.processInputs();
-        this.timeline.set(DELAY_server_to_client); // set timeline in future and broadcast it
+      if (self.isServer) {
+        self.processInputs();
+        self.timeline.set(DELAY_server_to_client); // set timeline in future and broadcast it
       } else {
-        this.processTimeline();
+        self.processTimeline();
       }
     });
   }
 
   processInputs () {
     //console.log("Applying force");
-    var state = this.timeline.get(DELAY_server_to_client); // get future state for processing
-    for(var i = 0; i < this.players.length; i++) {
-      var playerID = this.players[i].bodyidx; // get player's id
-      var force = state[playerID].a; // get force from state
-      force = Matter.Vector.create(force.x*forceScaling,-force.y*forceScaling); // change force to Matter.Vector
-      var body = this.getBody(player.bodyId); // get body from player's id
-      console.log("force is " + JSON.stringify(force));
-      try {
-        Matter.Body.applyForce(body, body.position, force);
-      }
-      catch(error) {
-        console.log("can't apply force error "+error);
+    var state = this.timeline.get(DELAY_server_to_client); // get future state {MAP} for processing
+    console.log("state is " + JSON.stringify(state));
+    if (state) {
+      for(var i = 0; i < this.players.length; i++) {
+        var playerID = this.players[i].bodyId; // get player's id
+        if (state.has(playerID)) {
+          var player = state.get(playerID); // get player status from state
+          console.log("player is " + JSON.stringify(player));
+          if (player.hasOwnProperty('a')) { // if having force
+            var force = Matter.Vector.create(player.a.x*forceScaling,-player.a.y*forceScaling); // change force to Matter.Vector
+            var body = this.getBody(player.bodyId); // get body from player's id
+            console.log("force is " + JSON.stringify(force));
+            try {
+              Matter.Body.applyForce(body, body.position, force);
+            } catch(error) {
+              console.log("can't apply force error "+error);
+            }
+          }
+        }
       }
     }
   }
@@ -756,10 +769,17 @@ class LinkedList { // Timeline Doubly Linked List
     this._tail = null;
     this._length = 0;
   }
+  mergeMap (node, val) {
+    for (var [key, new_data] in val) {
+        var old_data = node.get(key);
+        node.set(key,{...old_data, ...new_data});
+    }
+  }
   nodeCreate (ts,val) {
       var temp = {};
       temp.ts = Number(ts); // to eliminate WTF events like javascript thinking that "ts" is string, so ("5" > "15") is "true" => wasted 6 hrs finding this bug.
-      temp.data = val;
+      temp.data = new Map();
+      this.mergeMap (temp.data, val);
       temp.prev = null;
       temp.next = null;
       return temp;
@@ -839,13 +859,6 @@ class LinkedList { // Timeline Doubly Linked List
     }
     return toReturn;
   }
-  merge (node, val) {
-    for (var key in val) {
-      if (arrayHasOwnIndex(val, key)) {
-          node[key] = {...node[key], ...val[key]};
-      }
-    }
-  }
   addValue (ts,val) { // add new node at/just after ts
     var insert = this.findBound(ts);
     if (insert===null) 
@@ -853,7 +866,7 @@ class LinkedList { // Timeline Doubly Linked List
     else if (insert===this._tail)
         this.addAtBack(ts,val); // add new node at back
     else if (insert.ts===ts) {
-        this.merge(insert, val); // found same ts => merge data
+        this.mergeMap(insert.data, val); // found same ts => merge data
     } else {
         var temp = this.nodeCreate(ts, val);
         temp.prev = insert; // add new node inbetween
@@ -958,24 +971,33 @@ class LinkedList { // Timeline Doubly Linked List
 //            parse string into timeline
 
 class Timeline {
-  constructor (room, isServer) {
+  constructor (engine, room, isServer) {
     this.room = room;
+    this.engine = engine;
     this.isServer = isServer;
     // timeline is doubly linked list wtih methods:
     this.timeline = new LinkedList();
 
     this.com_dom = 20; //common denominator = 20 ms
     this.Clearcache_ts = 0;
-    if (!this.isServer)
-      setMessageSyncronization(); // set up receive message function 
+    //if (!this.isServer)
+    //  this.setMessageSyncronization(); // set up receive message function 
   }
   
   setMessageSyncronization () { // add onData for message reciever
+    var self = this;
     this.room.onData.add( function (message) {
+      //console.log(message);
       if (message.type == 'TL') { // Timeline
-        this.timeline.addValue(ts,val);
-      }
+        self.timeline.addValue(message.ts,message.val);
+      } //else {
+        //console.log("error");
+      //}
     });
+  }
+
+  recieveMessage (message) {
+    this.timeline.addValue(message.ts,message.val);
   }
 
   stringify () {
@@ -999,14 +1021,13 @@ class Timeline {
   }
 
   bakeActiveIndex () { // return payload = ActiveUpdateMessages
-    var payload = [];
-    var iterator = this.phyndex.activeIndices.keys();
+    var payload = new Map();
+    var iterator = this.engine.activeIndices.keys();
     var it;
     while (it = iterator.next(), !it.done) {
       var bodyidx = it.value;
-      var body = this.phyndex.getBody(bodyidx);
-      payload[bodyidx].p = body.position; // {x,y}
-      payload[bodyidx].v = body.velocity; // {x,y}
+      var body = this.engine.getBody(bodyidx);
+      payload.set(bodyidx,{p:body.position, v:body.velocity});
     }
     return payload;
   }
@@ -1017,13 +1038,14 @@ class Timeline {
 
   set (rel_time, key, bodyidx, val) { // if (one argument) {setActiveMessage}  else {set specific key} eg. set key 'a' in bodyidx in val
     var abs_time; // get absolute time
-    var payload = [];
+    var payload;
     if (key===undefined) { // if only one argument
       abs_time = this.relTime_to_Epoch(rel_time);
-      payload = bakeActiveIndex(); // payload = AUM
+      payload = this.bakeActiveIndex(); // payload = AUM
     } else { // else have 4 arguments
       abs_time = rel_time;
-      payload[bodyidx] = {[key]: val}; // payload = specific value
+      payload = new Map();
+      payload.set(bodyidx, {[key]: val}); // payload = specific value
     }
     this.timeline.addValue(abs_time, payload); // merge payload into timeline
     if (this.isServer)
@@ -1032,7 +1054,7 @@ class Timeline {
 
   get (rel_time) {
     var abs_time = this.relTime_to_Epoch(rel_time); // get absolute time
-    this.removeUntil(abs_time-Clearcache_ts);
+    this.timeline.removeUntil(abs_time-this.Clearcache_ts);
     return this.timeline.getValue(abs_time); // return data object from timeline
   }
   
