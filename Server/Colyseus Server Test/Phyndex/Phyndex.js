@@ -27,9 +27,14 @@ const mapUnitSize = 15;
 const playerDiameter = 2; //player diameter in units
 
 const forceScaling = 100.0;
+const DELAY_input_to_client = 400.0;
+const DELAY_server_to_client = 300.0;
 
 const MessageType_ActiveUpdateMessage = "AUM";
 
+function arrayHasOwnIndex(array, prop) {
+  return array.hasOwnProperty(prop) && /^0$|^[1-9]\d*$/.test(prop) && prop <= 4294967294; // something for loop in array
+}
 
 if ( typeof Matter !== 'undefined' && Matter )
 {
@@ -215,12 +220,15 @@ class FightOPlayer {
       - Call this to render the engine using Matter's default Renderer to the HTML document body
   */
 class FightOEngine {
-  constructor(engine) {
+  constructor(room, isServer, engine) {
     if(!engine) {
       this.engine = Matter.Engine.create();
     }
-    else this.engine = engine;    
-    this.phyndex = new Phyndex(this.engine);    
+    else this.engine = engine;
+    this.phyndex = new Phyndex(this.engine);
+    this.isServer = isServer;
+    this.room = room;
+    this.timeline = new Timeline(this.room, this.isServer);
     this.players = [];
     
     this.activeIndices = new Map();
@@ -464,6 +472,8 @@ class FightOEngine {
     @return {Integer} the index where the body was added
     */
   addBody(body, _index) {
+    if (isServer) // Inhibited calling on server
+      return;
     console.log("WARNING : EXTREME BUG. DO NOT CALL ADDBODY ON SERVER")
     var index;
     if(_index !== undefined) {
@@ -514,32 +524,45 @@ class FightOEngine {
       }
     });
   }
+  
   registerEngineForForces() {
-    var engine = this.phyndex.engine;
-    var self = this;
     Matter.Events.on(engine, "beforeUpdate", function(event) {
-      //console.log("Applying force");
-      var data = this.timeline.get
-      for(var i = 0; i < self.players.length; i++) {
-        var player = self.players[i];
-//         console.log("player is "+JSON.stringify(player));
-        var force = Matter.Vector.create(player.lastAccel.x*forceScaling,-player.lastAccel.y*forceScaling);
-        
-
-//TODO: Champ, tap force input here.        
-//        var force = self.timeline.forceAtTime((new Date()).milliseconds());
-        
-        var body = self.getBody(player.bodyId);
-//         console.log("body is "+JSON.stringify(body));
-        console.log("force is " + JSON.stringify(force));
-        try {
-          Matter.Body.applyForce(body, body.position, force);
-        }
-        catch(error) {
-          console.log("can't apply force error "+error);
-        }
+      if (this.isServer) {
+        this.processInputs();
+        this.timeline.set(DELAY_server_to_client); // set timeline in future and broadcast it
+      } else {
+        this.processTimeline();
       }
     });
+  }
+
+  processInputs () {
+    //console.log("Applying force");
+    var state = this.timeline.get(DELAY_server_to_client); // get future state for processing
+    for(var i = 0; i < this.players.length; i++) {
+      var playerID = this.players[i].bodyidx; // get player's id
+      var force = state[playerID].a; // get force from state
+      force = Matter.Vector.create(force.x*forceScaling,-force.y*forceScaling); // change force to Matter.Vector
+      var body = this.getBody(player.bodyId); // get body from player's id
+      console.log("force is " + JSON.stringify(force));
+      try {
+        Matter.Body.applyForce(body, body.position, force);
+      }
+      catch(error) {
+        console.log("can't apply force error "+error);
+      }
+    }
+  }
+
+  processTimeline() {
+    var state = this.timeline.get(0); // get current state at now
+    for (var key in state) { // loop in state {Active indices}
+      if (arrayHasOwnIndex(val,key)) {
+        var payload = state[key];
+        setPosition (key, payload.p.x, payload.p.y); // set position & velocity of each object
+        setVelocity (key, payload.v.x, payload.v.y);
+      }
+    }
   }
   
   registerEngineForCollisions() {
@@ -733,9 +756,6 @@ class LinkedList { // Timeline Doubly Linked List
     this._tail = null;
     this._length = 0;
   }
-  arrayHasOwnIndex(array, prop) {
-    return array.hasOwnProperty(prop) && /^0$|^[1-9]\d*$/.test(prop) && prop <= 4294967294; // something for loop in array
-  }
   nodeCreate (ts,val) {
       var temp = {};
       temp.ts = Number(ts); // to eliminate WTF events like javascript thinking that "ts" is string, so ("5" > "15") is "true" => wasted 6 hrs finding this bug.
@@ -908,7 +928,7 @@ class LinkedList { // Timeline Doubly Linked List
     this.removeUntil(4294967294);
     this.removeAtFront();
     for (var key in payload) {
-      if (this.arrayHasOwnIndex(payload, key)) {
+      if (arrayHasOwnIndex(payload, key)) {
         this.addValue(key, payload[key]);
       }
     }
@@ -945,6 +965,7 @@ class Timeline {
     this.timeline = new LinkedList();
 
     this.com_dom = 20; //common denominator = 20 ms
+    this.Clearcache_ts = 0;
     if (!this.isServer)
       setMessageSyncronization(); // set up receive message function 
   }
@@ -1011,6 +1032,7 @@ class Timeline {
 
   get (rel_time) {
     var abs_time = this.relTime_to_Epoch(rel_time); // get absolute time
+    this.removeUntil(abs_time-Clearcache_ts);
     return this.timeline.getValue(abs_time); // return data object from timeline
   }
   

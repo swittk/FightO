@@ -25,9 +25,8 @@ class FightOJSClient {
     var self = this;
     this.buffer = [];
     this.self_id = null;
-    this.fightEngine = new FightOEngine();
     this.room = client.join(roomname);
-    
+    this.fightEngine = new FightOEngine(this.room, false); //this is not server
     this.room.onJoin.add(function() {
       console.log("joined successfully");
       self.fightEngine.createRenderTarget();
@@ -46,7 +45,7 @@ class FightOJSClient {
       self.onData(message);
     });
     
-    this.setUpdateRate(60);
+    //this.setUpdateRate(60);
   }
   
   startListeningToNewChanges() {
@@ -85,11 +84,11 @@ class FightOJSClient {
         break;
     }
   }
-  
+  /*
   sendInput(x, y) {
     this.room.send({type:'accel',x:x, y:y});
   }
-  
+  */
   sendPing (x, y) {
     //console.log ("send ping" + (new Date()).getTime());
     this.room.send({type:'ping',ts:(new Date()).getTime()});
@@ -105,7 +104,7 @@ class FightOJSClient {
   addObject(object) {
     this.fightEngine.setObject(object, object.id);
   }
-
+/*
   setUpdateRate (hz) {
     this.update_rate = hz;
     clearInterval(this.update_interval);
@@ -176,7 +175,7 @@ class FightOJSClient {
       }
     }
   }
-
+*/
   /*
   createActiveUpdateMessage() {    
     var items = [];

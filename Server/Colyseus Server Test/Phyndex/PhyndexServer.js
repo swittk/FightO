@@ -54,8 +54,7 @@ class FightOGame extends Room {
   // When room is initialized
   onInit (options) {
     console.log("map is "+JSON.stringify(options.map)); 
-    this.fightEngine = new FightOEngine();
-    this.timeline = new Timeline (this, true); // send room, this is server
+    this.fightEngine = new FightOEngine(this, true); // send room, this is server
     //Set patch rate in milliseconds, default is 50
     //this.setPatchRate(50);
     
@@ -120,8 +119,8 @@ class FightOGame extends Room {
       return;
     }
     if(data.type == 'accel') {
-      if (this.validateInput(data.ts,client.player,data.val)) {
-        this.timeline.set(data.ts,'a',client.player.bodyId,data.val);
+      if (this.validateInput(client.player,data.val)) {
+        this.fightEngine.timeline.set(DELAY_input_to_client,'a',client.player.bodyId,data.val);
         console.log('received accel'+data.val);
       } else {
         console.log('input error');
@@ -143,13 +142,13 @@ class FightOGame extends Room {
     this.broadcast(message);
 }*/
 
-  validateInput (ts, idx, val) {
+  validateInput (idx, val) {
     var pingDelay = 100;
     var now = (new Date()).getTime();
-    var maxAccel = 1;
+    var maxAccel = 1;/*
     if (ts < now + pingDelay) { //invalid timestamp -> set accel in past
       return false;
-    }
+    }*/
     if (Math.abs(val.x) > maxAccel) {
       return false;
     }
