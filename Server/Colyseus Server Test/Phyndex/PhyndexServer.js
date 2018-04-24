@@ -70,7 +70,7 @@ class FightOGame extends Room {
     var self = this;
     this.engineTimer = 
     setInterval(function() {
-      self.fightEngine.step(0.05);
+      self.fightEngine.step(0.02);
     }, 50);
     
     this.activeUpdateTimer = setInterval(function(){

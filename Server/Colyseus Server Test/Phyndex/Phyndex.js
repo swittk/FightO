@@ -232,6 +232,8 @@ class FightOEngine {
     
     this.stateObject = {};
     this.stateObjectIndex = 0;
+    
+    //TODO:Champ ADD Timeline object here
   }
   
   step(dt) {
@@ -508,7 +510,7 @@ class FightOEngine {
 //         console.log("player is "+JSON.stringify(player));
         var force = Matter.Vector.create(player.lastAccel.x*forceScaling,-player.lastAccel.y*forceScaling);
 
-//TODO: Champ, tap force input here.        
+//TODO:Champ, tap force input here.        
 //        var force = self.timeline.forceAtTime((new Date()).milliseconds());
         
         var body = self.getBody(player.bodyId);
