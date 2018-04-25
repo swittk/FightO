@@ -27,8 +27,15 @@ const mapUnitSize = 15;
 const playerDiameter = 2; //player diameter in units
 
 const forceScaling = 100.0;
-const DELAY_input_to_client = 400.0;
-const DELAY_server_to_client = 300.0;
+
+
+const DELAY_input_to_client = 400.0;  //Predicted round trip time
+const DELAY_server_to_client = 300.0; //Server physics engine lead time.
+
+Constants = {
+  DELAY_input_to_client : 400.0,
+  DELAY_server_to_client : 300.0
+}
 
 const MessageType_ActiveUpdateMessage = "AUM";
 
@@ -535,7 +542,6 @@ class FightOEngine {
     Matter.Events.on(engine, "beforeUpdate", function(event) {
       if (self.isServer) {
         self.processInputs();
-        self.timeline.set(DELAY_server_to_client); // set timeline in future and broadcast it
         self.timeline.flushCache(-DELAY_server_to_client);
       } else {
         self.processTimeline();
@@ -546,18 +552,20 @@ class FightOEngine {
 
   processInputs () {
     //console.log("Applying force");
-    var state = this.timeline.get(DELAY_server_to_client); // get future state {MAP} for processing
-    console.log("state is " + JSON.stringify(state));
+    var recievedState = this.timeline.get(DELAY_server_to_client); // get future state {MAP} for processing
+    console.log("now is "+(new Date()).getTime());
+    console.log("state is " + JSON.stringify(recievedState));
     console.log("timeline : "+this.timeline.stringify());
-    if (state) {
+    if (recievedState) {
+      var state = recievedState.val;
       for(var i = 0; i < this.players.length; i++) {
         var playerID = this.players[i].bodyId; // get player's id
-        if ("playerID" in state) {
+        if (Number(playerID) in state) {
           var player = state[playerID]; // get player status from state
           console.log("player is " + JSON.stringify(player));
-          if (player.hasOwnProperty('a')) { // if having force
+          if ('a' in player) { // if having force
             var force = Matter.Vector.create(player.a.x*forceScaling,-player.a.y*forceScaling); // change force to Matter.Vector
-            var body = this.getBody(player.bodyId); // get body from player's id
+            var body = this.getBody(playerID); // get body from player's id
             console.log("force is " + JSON.stringify(force));
             try {
               Matter.Body.applyForce(body, body.position, force);
@@ -566,6 +574,7 @@ class FightOEngine {
             }
           }
         }
+        this.timeline.set(recievedState.ts); // set timeline in future and broadcast it
       }
     }
   }
@@ -733,7 +742,8 @@ if(isNode) {
     Phyndex : Phyndex,
     FightOEngine : FightOEngine,
     FightOMessage : FightOMessage,
-    ActiveUpdateMessage : ActiveUpdateMessage
+    ActiveUpdateMessage : ActiveUpdateMessage,
+    Constants : Constants
   }
 }
 
@@ -774,17 +784,18 @@ class LinkedList { // Timeline Doubly Linked List
     this._length = 0;
   }
   mergeMap (node, val) {
-    for (var [key, new_data] in val) {
-        var old_data = node[key];
-        var obj = {};
-        for(var k in old_data) {
-          obj[k] = old_data[k];
-        }
-        for(var k in new_data) {
-          obj[k] = new_data[k];
-        }
-        node[key] = obj;
-        //node.set(key,{...old_data, ...new_data}); //Troublesome code; ES2018 is not fully supported yet.
+    for(var key in val) {
+      var new_data = val[key];
+      var old_data = node[key];
+      var obj = {};
+      for(var k in old_data) {
+        obj[k] = old_data[k];
+      }
+      for(var k in new_data) {
+        obj[k] = new_data[k];
+      }
+      node[key] = obj;
+      //node.set(key,{...old_data, ...new_data}); //Troublesome code; ES2018 is not fully supported yet.
     }
   }
   nodeCreate (ts,val) {
@@ -873,6 +884,7 @@ class LinkedList { // Timeline Doubly Linked List
   }
   addValue (ts,val) { // add new node at/just after ts
     var insert = this.findBound(ts);
+    console.log('addvalue '+ts+',val'+JSON.stringify(val));
     if (insert===null) {
       this.addAtFront(ts,val); // add new node at front
       console.log('add front');
@@ -922,7 +934,8 @@ class LinkedList { // Timeline Doubly Linked List
       var find = this.findBound(ts);
       if (!find)
           return null;
-      return find.data;
+      console.log("find : " + ts + ", found : " + find.ts + "with data"+JSON.stringify(find.data));
+      return {ts:find.ts,val:find.data};
   }
   size () {
       return this._length;
@@ -1056,19 +1069,26 @@ class Timeline {
     return this.relTime_to_Epoch(rel_time);
   }
 
-  set (rel_time, key, bodyidx, val) { // if (one argument) {setActiveMessage}  else {set specific key} eg. set key 'a' in bodyidx in val
+  set (abs_time, key, bodyidx, val) { // if (one argument) {setActiveMessage}  else {set specific key} eg. set key 'a' in bodyidx in val
     var abs_time; // get absolute time
     var payload;
     if (key===undefined) { // if only one argument
-      abs_time = this.relTime_to_Epoch(rel_time);
       payload = this.bakeActiveIndex(); // payload = AUM
+      console.log("abstime1 : "+abs_time);
+      
     } else { // else have 4 arguments
-      abs_time = rel_time;
+      abs_time = this.roundToCM(abs_time);
+      console.log("abstime4 : "+abs_time);
       payload = {};
       payload[bodyidx] = {[key]: val}; // payload = specific value
     }
+    
+    // In case key is undefined, this is called from the main physics engine; the server,
+    // meaning this adds position and velocity just computed into the same time that was just 
+    // used in the "beforeUpdate" call. The resulting state will now have a, p, and v.
+    // In case of 4 arguments, we simply add the keys into that {} object.
+    this.timeline.addValue (abs_time, payload); 
     //console.log("payload of "+JSON.stringify(payload));
-    this.timeline.addValue(abs_time, payload); // merge payload into timeline
     if (this.isServer)
       this.room.broadcast({type:'TL',ts:abs_time,val:payload}); // broadcast to all clients
   }

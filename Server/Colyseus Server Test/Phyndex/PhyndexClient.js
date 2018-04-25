@@ -88,7 +88,7 @@ class FightOJSClient {
   }
   
   sendInput(x, y) {
-    this.room.send({type:'accel',x:x, y:y});
+    this.room.send({type:'accel',ts:(new Date()).getTime(),x:x, y:y});
   }
   
   sendPing (x, y) {

@@ -121,7 +121,7 @@ class FightOGame extends Room {
     }
     if(data.type == 'accel') {
       if (this.validateInput(client.player,data.x,data.y)) {
-        this.fightEngine.timeline.set(DELAY_input_to_client,'a',client.player.bodyId,{x:data.x,y:data.y});
+        this.fightEngine.timeline.set(data.ts+DELAY_input_to_client,'a',client.player.bodyId,{x:data.x,y:data.y});
         //console.log('received accel'+data.x+" "+data.y);
       } else {
         console.log('input error');
