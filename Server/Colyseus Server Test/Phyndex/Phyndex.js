@@ -28,14 +28,14 @@ const playerDiameter = 2; //player diameter in units
 
 const forceScaling = 100.0;
 
-
-const DELAY_input_to_client = 400.0;  //Predicted round trip time
-const DELAY_server_to_client = 300.0; //Server physics engine lead time.
-
 Constants = {
-  DELAY_input_to_client : 400.0,
-  DELAY_server_to_client : 300.0
+  DELAY_input_to_client : 100.0,
+  DELAY_server_to_client : 50.0
 }
+
+const DELAY_input_to_client = Constants.DELAY_input_to_client;  //Predicted round trip time
+const DELAY_server_to_client = Constants.DELAY_server_to_client; //Server physics engine lead time.
+
 
 const MessageType_ActiveUpdateMessage = "AUM";
 
@@ -553,9 +553,9 @@ class FightOEngine {
   processInputs () {
     //console.log("Applying force");
     var recievedState = this.timeline.get(DELAY_server_to_client); // get future state {MAP} for processing
-    console.log("now is "+(new Date()).getTime());
-    console.log("state is " + JSON.stringify(recievedState));
-    console.log("timeline : "+this.timeline.stringify());
+//     console.log("now is "+(new Date()).getTime());
+//     console.log("state is " + JSON.stringify(recievedState));
+//     console.log("timeline : "+this.timeline.stringify());
     if (recievedState) {
       var state = recievedState.val;
       for(var i = 0; i < this.players.length; i++) {
@@ -580,11 +580,37 @@ class FightOEngine {
   }
 
   processTimeline() {
+    console.log("processing timeline");
     var state = this.timeline.get(0); // get current state at now
-    console.log("pcessing now stt of "+JSON.stringify(state));
+//     console.log("pcessing now stt of "+JSON.stringify(state));
+    var val = state.val;
+    for(var idkey in val) {
+      console.log(val);
+      var payload = val[idkey];
+      console.log(payload);
+      if(payload.a) {
+        console.log("in if payload");
+        var force = Matter.Vector.create(payload.a.x*forceScaling,-payload.a.y*forceScaling); // change force to Matter.Vector
+        var body = this.getBody(idkey); // get body from player's id
+        console.log("force is " + JSON.stringify(force));
+        try {
+          Matter.Body.applyForce(body, body.position, force);
+        } catch(error) {
+          console.log("can't apply force error "+error);
+        }
+      }
+      if(payload.p) {
+        //if there is p, there must be v
+        setPosition (key, payload.p.x, payload.p.y); // set position & velocity of each object
+        setVelocity (key, payload.v.x, payload.v.y);
+      }
+    }
+    
     for (var key in state) { // loop in state {Active indices}
       if (arrayHasOwnIndex(val,key)) {
         var payload = state[key];
+        
+        //TODO: Apply force here
         setPosition (key, payload.p.x, payload.p.y); // set position & velocity of each object
         setVelocity (key, payload.v.x, payload.v.y);
       }
@@ -884,18 +910,18 @@ class LinkedList { // Timeline Doubly Linked List
   }
   addValue (ts,val) { // add new node at/just after ts
     var insert = this.findBound(ts);
-    console.log('addvalue '+ts+',val'+JSON.stringify(val));
+    //console.log('addvalue '+ts+',val'+JSON.stringify(val));
     if (insert===null) {
       this.addAtFront(ts,val); // add new node at front
-      console.log('add front');
+      //console.log('add front');
     }
     else if (insert===this._tail) {
       this.addAtBack(ts,val); // add new node at back
-      console.log('add back');
+      //console.log('add back');
     }
     else if (insert.ts===ts) {
       this.mergeMap(insert.data, val); // found same ts => merge data
-      console.log('merge with last');
+      //console.log('merge with last');
     } else {
       var temp = this.nodeCreate(ts, val);
       temp.prev = insert; // add new node inbetween
@@ -903,7 +929,7 @@ class LinkedList { // Timeline Doubly Linked List
       temp.prev.next = temp;
       temp.next.prev = temp;
       this._length++;
-      console.log('independent creation');
+      //console.log('independent creation');
     }
   }
   removeUntil (ts) { // remove unused node (until >= ts) for sake of freeing memory
@@ -934,7 +960,7 @@ class LinkedList { // Timeline Doubly Linked List
       var find = this.findBound(ts);
       if (!find)
           return null;
-      console.log("find : " + ts + ", found : " + find.ts + "with data"+JSON.stringify(find.data));
+//       console.log("find : " + ts + ", found : " + find.ts + "with data"+JSON.stringify(find.data));
       return {ts:find.ts,val:find.data};
   }
   size () {
@@ -947,8 +973,8 @@ class LinkedList { // Timeline Doubly Linked List
       console.log(this._tail);
       console.log("LENGTH: " + this._length);
       while (iterator!==null) {
-          console.log ("No." + (++i));
-          console.log(iterator);
+           console.log ("No." + (++i));
+           console.log(iterator);
           if (iterator.next === null)
           break;
           iterator = iterator.next;
@@ -1055,7 +1081,7 @@ class Timeline {
     var payload = {};
     var iterator = this.engine.activeIndices.keys();
     var it;
-    console.log('iterate'+iterator);
+//     console.log('iterate'+iterator);
     while (it = iterator.next(), !it.done) {
       var bodyidx = it.value;
       var body = this.engine.getBody(bodyidx);
@@ -1074,11 +1100,11 @@ class Timeline {
     var payload;
     if (key===undefined) { // if only one argument
       payload = this.bakeActiveIndex(); // payload = AUM
-      console.log("abstime1 : "+abs_time);
+//       console.log("abstime1 : "+abs_time);
       
     } else { // else have 4 arguments
       abs_time = this.roundToCM(abs_time);
-      console.log("abstime4 : "+abs_time);
+//       console.log("abstime4 : "+abs_time);
       payload = {};
       payload[bodyidx] = {[key]: val}; // payload = specific value
     }

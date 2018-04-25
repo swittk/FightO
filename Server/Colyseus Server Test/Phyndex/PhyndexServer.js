@@ -2,10 +2,10 @@ const { Room, Server } = require('colyseus');
 
 const Matter = require('matter-js');
 
-const {Phyndex, FightOEngine, FightOMessage} = require('./Phyndex.js');
+const {Phyndex, FightOEngine, FightOMessage, Constants} = require('./Phyndex.js');
 
 const http = require('http');
-const DELAY_input_to_client = 400.0;
+const DELAY_input_to_client = Constants.DELAY_input_to_client;
 
 var sampleLevel = {
   "size" : {w:100,h:100},

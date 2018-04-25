@@ -39,12 +39,9 @@ class FightOJSClient {
         self.startListeningToNewChanges();
       }
     });
-//     self.startListeningToNewChanges();
     this.room.onData.add(function(message) {
       self.onData(message);
     });
-    
-    //this.setUpdateRate(60);
   }
   
   startListeningToNewChanges() {
@@ -285,5 +282,10 @@ function logGyro(x, y) {
   var output = document.getElementById("accelDisplay");
   output.innerHTML = "accel ("+x+","+y+")";
 }
+
+var tickTimer = setInterval(function() {
+  client.fightEngine.step(0.02);
+}, 20);
+
 
 logOutput("console:")
