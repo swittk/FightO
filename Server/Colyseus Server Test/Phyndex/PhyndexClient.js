@@ -283,8 +283,13 @@ function logGyro(x, y) {
   output.innerHTML = "accel ("+x+","+y+")";
 }
 
+
+var lastEngineCallTime = (new Date()).getTime();
 var tickTimer = setInterval(function() {
-  client.fightEngine.step(0.02);
+  var now = (new Date()).getTime();
+  var diff = now - lastEngineCallTime;
+  client.fightEngine.step(diff/1000.0);
+  lastEngineCallTime = now;
 }, 20);
 
 

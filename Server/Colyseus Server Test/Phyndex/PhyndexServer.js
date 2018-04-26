@@ -68,9 +68,14 @@ class FightOGame extends Room {
     this.loadMap(options.map);
     
     var self = this;
+    
+    self.lastEngineCallTime = (new Date()).getTime();
     this.engineTimer = 
     setInterval(function() {
-      self.fightEngine.step(0.02);
+      var now = (new Date()).getTime();
+      var diff = now - self.lastEngineCallTime;
+      self.fightEngine.step(diff/1000.0);
+      self.lastEngineCallTime = now;
     }, 50);
     /*
     this.activeUpdateTimer = setInterval(function(){

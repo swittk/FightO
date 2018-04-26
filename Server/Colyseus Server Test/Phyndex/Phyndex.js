@@ -585,34 +585,25 @@ class FightOEngine {
 //     console.log("pcessing now stt of "+JSON.stringify(state));
     var val = state.val;
     for(var idkey in val) {
-      console.log(val);
+//       console.log(val);
       var payload = val[idkey];
       console.log(payload);
       if(payload.a) {
-        console.log("in if payload");
+        console.log("payload:x:"+payload.a.x+"y:"+payload.a.y);
         var force = Matter.Vector.create(payload.a.x*forceScaling,-payload.a.y*forceScaling); // change force to Matter.Vector
         var body = this.getBody(idkey); // get body from player's id
-        console.log("force is " + JSON.stringify(force));
+//         console.log("force is " + JSON.stringify(force));
         try {
           Matter.Body.applyForce(body, body.position, force);
         } catch(error) {
           console.log("can't apply force error "+error);
         }
       }
+      else {console.log("No acceleration");}
       if(payload.p) {
         //if there is p, there must be v
-        setPosition (key, payload.p.x, payload.p.y); // set position & velocity of each object
-        setVelocity (key, payload.v.x, payload.v.y);
-      }
-    }
-    
-    for (var key in state) { // loop in state {Active indices}
-      if (arrayHasOwnIndex(val,key)) {
-        var payload = state[key];
-        
-        //TODO: Apply force here
-        setPosition (key, payload.p.x, payload.p.y); // set position & velocity of each object
-        setVelocity (key, payload.v.x, payload.v.y);
+        this.setPosition (idkey, payload.p.x, payload.p.y); // set position & velocity of each object
+        this.setVelocity (idkey, payload.v.x, payload.v.y);
       }
     }
   }
