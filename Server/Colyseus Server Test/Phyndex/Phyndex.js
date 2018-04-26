@@ -575,6 +575,7 @@ class FightOEngine {
           }
         }
         this.timeline.set(recievedState.ts); // set timeline in future and broadcast it
+        console.log('timeline '+this.timeline.stringify());
       }
     }
   }
@@ -583,13 +584,14 @@ class FightOEngine {
     console.log("processing timeline");
     var state = this.timeline.get(0); // get current state at now
 //     console.log("pcessing now stt of "+JSON.stringify(state));
+    if(!state) return;
     var val = state.val;
     for(var idkey in val) {
 //       console.log(val);
       var payload = val[idkey];
       console.log(payload);
       if(payload.a) {
-        console.log("payload:x:"+payload.a.x+"y:"+payload.a.y);
+//         console.log("payload:x:"+payload.a.x+"y:"+payload.a.y);
         var force = Matter.Vector.create(payload.a.x*forceScaling,-payload.a.y*forceScaling); // change force to Matter.Vector
         var body = this.getBody(idkey); // get body from player's id
 //         console.log("force is " + JSON.stringify(force));
@@ -599,7 +601,6 @@ class FightOEngine {
           console.log("can't apply force error "+error);
         }
       }
-      else {console.log("No acceleration");}
       if(payload.p) {
         //if there is p, there must be v
         this.setPosition (idkey, payload.p.x, payload.p.y); // set position & velocity of each object
@@ -1044,7 +1045,7 @@ class Timeline {
     });
   }
 
-  recieveMessage (message) {
+  receiveMessage (message) {
     this.timeline.addValue(message.ts,message.val);
   }
 
@@ -1097,7 +1098,10 @@ class Timeline {
       abs_time = this.roundToCM(abs_time);
 //       console.log("abstime4 : "+abs_time);
       payload = {};
-      payload[bodyidx] = {[key]: val}; // payload = specific value
+      var bodyDetails = {};
+      bodyDetails[key] = val;
+      payload[bodyidx] = bodyDetails; // payload = specific value
+//       payload[bodyidx] = {[key]: val}; 
     }
     
     // In case key is undefined, this is called from the main physics engine; the server,

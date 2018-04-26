@@ -76,7 +76,7 @@ class FightOJSClient {
         console.log("ping: "+ (((new Date()).getTime())-message.payload));
         break;
       case "TL" :
-        this.fightEngine.timeline.recieveMessage(message);
+        this.fightEngine.timeline.receiveMessage(message);
         break;
       default: 
         logOutput("Default"+message.type + " & " + message.payload);
@@ -290,7 +290,9 @@ var tickTimer = setInterval(function() {
   var diff = now - lastEngineCallTime;
   client.fightEngine.step(diff/1000.0);
   lastEngineCallTime = now;
-}, 20);
+}, 30);
+
+// Matter.Engine.run(client.fightEngine.engine);
 
 
 logOutput("console:")
